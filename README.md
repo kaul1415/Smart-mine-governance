@@ -1,29 +1,34 @@
-# Smart Mine Governance - Frontend
+Background:
+The Indian coal mining sector involves large-scale operations spread across multiple subsidiaries, mine sites, contractors, regulatory bodies, and field offices. Governance-related activities such as statutory compliance monitoring, inspection tracking, safety observations, production reporting, environmental monitoring, worker attendance, contract management, grievance handling, and regulatory reporting are often managed through fragmented systems, manual documentation, spreadsheets, and delayed reporting mechanisms.
 
-## Setup
+This leads to challenges such as data inconsistency, delayed decision-making, limited transparency, compliance gaps, duplication of records, weak monitoring of field-level activities, and difficulty in obtaining real-time operational insights. With increasing focus on transparency, accountability, sustainability, and digital governance, there is a need for an integrated smart governance platform specifically designed for the coal mining ecosystem.
 
-1. Install Node.js
-2. Open this folder in VS Code
+Defining the Problem:
+Develop a centralized AI-enabled governance and compliance monitoring platform for coal mining operations that can digitally integrate mine-level activities, statutory compliance, inspections, contractor management, and operational reporting.
 
-3. Run: npm install
+The proposed solution should:
+• Digitally track statutory compliance requirements related to safety, environment, production, and labour regulations.
+• Enable real-time monitoring of inspections, observations, violations, and corrective actions.
+• Use AI/analytics to identify high-risk areas, recurring compliance failures, and operational anomalies.
+• Provide geo-tagged and time-stamped field reporting through mobile applications.
+• Integrate dashboards for mine officials, corporate management, and regulatory authorities.
+• Generate automated alerts, reminders, compliance reports, and escalation mechanisms.
+• Minimize manual paperwork and improve transparency, accountability, and decision-making.
+• Be scalable for deployment across multiple mines and subsidiaries.
+• Participants may use AI/ML, mobile applications, GIS mapping, OCR/document digitization, workflow automation, blockchain-based audit trails, or multilingual conversational interfaces as part of the solution.
 
-4. Start the development server: npm run dev
+The proposed system is expected to:
+• Improve governance efficiency and transparency in coal mining operations.
+• Reduce delays and errors in compliance management and reporting.
+• Enable data-driven monitoring and faster administrative decision-making.
+• Strengthen accountability and real-time tracking of field activities.
+• Support digital transformation and paperless governance in the mining sector.
+• Create a scalable indigenous e-governance framework for Indian coal mines. Expected Solution:
 
------
+The proposed solution should be a centralized AI-enabled smart governance platform for coal mines that integrates compliance monitoring, inspection management, operational reporting, contractor management, and field activity tracking into a single digital ecosystem. The system should provide real-time visibility, automated workflows, and data-driven insights through web and mobile applications to improve transparency, accountability, and decision-making across multiple mining sites and subsidiaries.
 
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+• Centralized dashboard for mine officials, corporate management, and regulatory authorities with real-time compliance and operational monitoring.
+• AI/analytics engine to detect compliance risks, operational anomalies, recurring violations, and generate predictive alerts.
+• Geo-tagged mobile application for field inspections, safety observations, attendance, and incident reporting with offline support.
+• Automated workflow system for alerts, reminders, escalations, digital approvals, and statutory report generation.
+• GIS mapping, OCR-based document digitization, and secure digital audit trails for transparent and paperless governance.
