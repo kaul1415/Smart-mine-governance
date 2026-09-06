@@ -1285,6 +1285,156 @@ export const mockContractorPerformance = {
   'contractor-4': { safetyCompliance: 95, taskCompletion: 94, inspectionScore: 93, documentation: 96, overall: 95 },
 };
 
+export const mockDocuments = [
+  {
+    id: 'DOC-1',
+    name: 'inspection-report-INS-1023-scan.pdf',
+    fileType: 'PDF',
+    mineId: 'mine-b',
+    mineName: 'Mine B — Jharia Underground',
+    status: 'Processed',
+    uploadedDate: '2026-09-05T15:00:00+05:30',
+    extractedData: {
+      documentType: 'Inspection Report',
+      mine: 'Mine B — Jharia Underground',
+      inspectionDate: '2026-09-05T09:00:00+05:30',
+      inspector: 'Arjun Mehta',
+      observations: [
+        'Fire extinguisher near east gallery junction expired, pressure gauge reads empty.',
+        'Two workers observed without hard hats near the conveyor area.',
+      ],
+      highSeverityFindings: 1,
+      suggestedCorrectiveActions: [
+        { issue: 'Expired fire extinguisher, east gallery', priority: 'HIGH', recommendation: 'Replace fire extinguisher and verify pressure gauge on all units in the east gallery.' },
+      ],
+    },
+  },
+  {
+    id: 'DOC-2',
+    name: 'magazine-register-extract.pdf',
+    fileType: 'PDF',
+    mineId: 'mine-c',
+    mineName: 'Mine C — Korba Block',
+    status: 'Processed',
+    uploadedDate: '2026-08-19T10:00:00+05:30',
+    extractedData: {
+      documentType: 'Statutory Register Extract',
+      mine: 'Mine C — Korba Block',
+      inspectionDate: '2026-09-01T11:00:00+05:30',
+      inspector: 'Arjun Mehta',
+      observations: ['Explosives magazine register missing the last two entries.'],
+      highSeverityFindings: 1,
+      suggestedCorrectiveActions: [
+        { issue: 'Explosives register gap', priority: 'MEDIUM', recommendation: 'Backfill register entries and introduce daily countersignature.' },
+      ],
+    },
+  },
+  {
+    id: 'DOC-3',
+    name: 'training-attendance-2026.pdf',
+    fileType: 'PDF',
+    mineId: 'mine-a',
+    mineName: 'Mine A — Talcher Opencast',
+    status: 'Processed',
+    uploadedDate: '2026-01-10T09:00:00+05:30',
+    extractedData: {
+      documentType: 'Training Attendance Record',
+      mine: 'Mine A — Talcher Opencast',
+      inspectionDate: '2026-01-10T00:00:00+05:30',
+      inspector: 'Site Administration',
+      observations: ['All 112 enrolled workers completed the annual safety refresher.'],
+      highSeverityFindings: 0,
+      suggestedCorrectiveActions: [],
+    },
+  },
+];
+
+export const CHAT_SUGGESTED_QUESTIONS = [
+  'Why is Mine B high risk?',
+  'Show unresolved high-severity flags.',
+  'Which contractor has the highest risk?',
+  "Summarize Mine A's latest inspection.",
+  'What compliance requirements are due this week?',
+  'Show recurring safety violations.',
+];
+
+export const mockChatConversations = [
+  {
+    id: 'chat-1',
+    title: 'Why is Mine B high risk?',
+    createdAt: '2026-09-06T09:10:00+05:30',
+    messages: [
+      { id: 'm1', role: 'user', content: 'Why is Mine B high risk?', timestamp: '2026-09-06T09:10:00+05:30' },
+      {
+        id: 'm2',
+        role: 'assistant',
+        content:
+          "Mine B's risk score is 82/100 (HIGH), up from 74 last month. The main contributors are overdue corrective actions (32%), safety violations (27%), contractor risk (21%), and inspection findings (20%). The most recent driver was flag F-1021 — an expired fire extinguisher in the east gallery — which is still open as corrective action CA-1042.",
+        timestamp: '2026-09-06T09:10:04+05:30',
+        sources: ['F-1021', 'CA-1042', 'Mine B — Jharia Underground'],
+      },
+    ],
+  },
+  {
+    id: 'chat-2',
+    title: 'Show overdue actions',
+    createdAt: '2026-09-06T08:40:00+05:30',
+    messages: [
+      { id: 'm3', role: 'user', content: 'Show overdue actions', timestamp: '2026-09-06T08:40:00+05:30' },
+      {
+        id: 'm4',
+        role: 'assistant',
+        content:
+          'There are 2 overdue corrective actions: CA-1042 (expired fire extinguisher, Mine B, due 4 Sep) and CA-1038 (irregular drinking water supply, Mine E, due 5 Sep). Both are assigned and past their deadline.',
+        timestamp: '2026-09-06T08:40:03+05:30',
+        sources: ['CA-1042', 'CA-1038'],
+      },
+    ],
+  },
+  {
+    id: 'chat-3',
+    title: 'Contractor performance',
+    createdAt: '2026-09-05T14:00:00+05:30',
+    messages: [
+      { id: 'm5', role: 'user', content: 'Contractor performance', timestamp: '2026-09-05T14:00:00+05:30' },
+      {
+        id: 'm6',
+        role: 'assistant',
+        content:
+          'ABC Mining Services (Mine B) has the lowest overall performance at 74%, driven by safety compliance (71%) and inspection score (64%). Site Contract Labour Pool (Mine C) leads at 95% overall.',
+        timestamp: '2026-09-05T14:00:03+05:30',
+        sources: ['ABC Mining Services', 'Site Contract Labour Pool'],
+      },
+    ],
+  },
+  {
+    id: 'chat-4',
+    title: 'Mine inspection summary',
+    createdAt: '2026-09-05T11:20:00+05:30',
+    messages: [
+      { id: 'm7', role: 'user', content: 'Mine inspection summary', timestamp: '2026-09-05T11:20:00+05:30' },
+      {
+        id: 'm8',
+        role: 'assistant',
+        content:
+          'The most recent inspection was INS-1023 at Mine B (Safety Audit, 5 Sep) with 2 observations, one HIGH severity (expired fire extinguisher) and one MEDIUM (missing PPE). Overall inspection risk was rated HIGH.',
+        timestamp: '2026-09-05T11:20:03+05:30',
+        sources: ['INS-1023'],
+      },
+    ],
+  },
+];
+
+export const REPORT_TYPES = [
+  'Mine Compliance Report',
+  'Safety Report',
+  'Inspection Report',
+  'Contractor Performance',
+  'Corrective Action Report',
+  'Risk Report',
+  'Monthly Governance Report',
+];
+
 export const mockDashboardStats = {
   totalMines: mockMines.length,
   activeFlags: mockFlags.filter((f) => !['Resolved', 'Dismissed', 'Closed'].includes(f.status)).length,
