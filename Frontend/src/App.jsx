@@ -22,6 +22,17 @@ import CorrectiveActionDetails from './pages/correctiveActions/CorrectiveActionD
 import RiskIntelligence from './pages/risk/RiskIntelligence.jsx';
 import RiskMap from './pages/risk/RiskMap.jsx';
 import NotificationsCenter from './pages/notifications/NotificationsCenter.jsx';
+import ContractorsList from './pages/contractors/ContractorsList.jsx';
+import ContractorDetails from './pages/contractors/ContractorDetails.jsx';
+import ContractorDashboard from './pages/contractor/ContractorDashboard.jsx';
+import MyProjects from './pages/contractor/MyProjects.jsx';
+import MyReports from './pages/contractor/MyReports.jsx';
+import Attendance from './pages/contractor/Attendance.jsx';
+import SafetyRequirements from './pages/contractor/SafetyRequirements.jsx';
+import AssignedActions from './pages/contractor/AssignedActions.jsx';
+import ContractorDocuments from './pages/contractor/ContractorDocuments.jsx';
+import RiskNotifications from './pages/contractor/RiskNotifications.jsx';
+import Performance from './pages/contractor/Performance.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -30,17 +41,6 @@ import NotFound from './pages/NotFound.jsx';
 // every module. Each entry maps 1:1 to the route list in the project
 // brief and gets swapped for the real page as its phase is built.
 const PLACEHOLDER_ROUTES = [
-  { path: '/contractors', title: 'Contractors', phase: 'Phase 5' },
-  { path: '/contractors/:id', title: 'Contractor Details', phase: 'Phase 5' },
-  { path: '/contractor/dashboard', title: 'Contractor Dashboard', phase: 'Phase 5' },
-  { path: '/contractor/projects', title: 'My Projects', phase: 'Phase 5' },
-  { path: '/contractor/reports', title: 'My Reports', phase: 'Phase 5' },
-  { path: '/contractor/attendance', title: 'Attendance', phase: 'Phase 5' },
-  { path: '/contractor/safety', title: 'Safety Requirements', phase: 'Phase 5' },
-  { path: '/contractor/actions', title: 'Assigned Corrective Actions', phase: 'Phase 5' },
-  { path: '/contractor/documents', title: 'Contractor Documents', phase: 'Phase 5' },
-  { path: '/contractor/risk', title: 'Risk Notifications', phase: 'Phase 5' },
-  { path: '/contractor/performance', title: 'Contractor Performance', phase: 'Phase 5' },
   { path: '/documents', title: 'Document Intelligence', phase: 'Phase 6' },
   { path: '/copilot', title: 'AI Copilot', phase: 'Phase 6' },
   { path: '/reports', title: 'Reports', phase: 'Phase 6' },
@@ -83,6 +83,18 @@ export default function App() {
         <Route path="/risk" element={<RiskIntelligence />} />
         <Route path="/risk/map" element={<RiskMap />} />
         <Route path="/notifications" element={<NotificationsCenter />} />
+
+        <Route path="/contractors" element={<ContractorsList />} />
+        <Route path="/contractors/:id" element={<ContractorDetails />} />
+        <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
+        <Route path="/contractor/projects" element={<MyProjects />} />
+        <Route path="/contractor/reports" element={<MyReports />} />
+        <Route path="/contractor/attendance" element={<Attendance />} />
+        <Route path="/contractor/safety" element={<SafetyRequirements />} />
+        <Route path="/contractor/actions" element={<AssignedActions />} />
+        <Route path="/contractor/documents" element={<ContractorDocuments />} />
+        <Route path="/contractor/risk" element={<RiskNotifications />} />
+        <Route path="/contractor/performance" element={<Performance />} />
 
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />

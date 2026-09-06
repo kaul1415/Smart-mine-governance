@@ -10,7 +10,7 @@ export const mockUsers = [
   { id: 'u2', name: 'Vikram Sethi', email: 'manager@minegov.ai', role: ROLES.MINE_MANAGER, mineId: 'mine-b' },
   { id: 'u3', name: 'Priya Nair', email: 'safety@minegov.ai', role: ROLES.SAFETY_OFFICER },
   { id: 'u4', name: 'Arjun Mehta', email: 'inspector@minegov.ai', role: ROLES.FIELD_INSPECTOR },
-  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR },
+  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR, contractorId: 'contractor-1' },
   { id: 'u6', name: 'Coal Controller Office', email: 'regulator@minegov.ai', role: ROLES.REGULATOR },
 ];
 
@@ -1106,6 +1106,184 @@ export const mockInspections = [
     observations: [],
   },
 ];
+
+export const mockContractors = [
+  {
+    id: 'contractor-1',
+    name: 'ABC Mining Services',
+    primaryMineId: 'mine-b',
+    primaryMineName: 'Mine B — Jharia Underground',
+    workers: 84,
+    complianceRate: 71,
+    riskLevel: 'HIGH',
+    riskScore: 68,
+    openActions: 2,
+  },
+  {
+    id: 'contractor-2',
+    name: 'Site Environment Cell',
+    primaryMineId: 'mine-e',
+    primaryMineName: 'Mine E — Raniganj Field',
+    workers: 22,
+    complianceRate: 88,
+    riskLevel: 'MEDIUM',
+    riskScore: 42,
+    openActions: 1,
+  },
+  {
+    id: 'contractor-3',
+    name: 'Fleet Maintenance Team',
+    primaryMineId: 'mine-c',
+    primaryMineName: 'Mine C — Korba Block',
+    workers: 35,
+    complianceRate: 93,
+    riskLevel: 'LOW',
+    riskScore: 21,
+    openActions: 1,
+  },
+  {
+    id: 'contractor-4',
+    name: 'Site Contract Labour Pool',
+    primaryMineId: 'mine-c',
+    primaryMineName: 'Mine C — Korba Block',
+    workers: 61,
+    complianceRate: 95,
+    riskLevel: 'LOW',
+    riskScore: 15,
+    openActions: 0,
+  },
+];
+
+export const mockContractorProjects = [
+  {
+    id: 'PRJ-101',
+    contractorId: 'contractor-1',
+    name: 'East Gallery Fire Safety Upgrade',
+    mineId: 'mine-b',
+    mineName: 'Mine B — Jharia Underground',
+    status: 'In Progress',
+    startDate: '2026-07-01T00:00:00+05:30',
+    endDate: '2026-09-30T00:00:00+05:30',
+    compliance: 74,
+  },
+  {
+    id: 'PRJ-102',
+    contractorId: 'contractor-1',
+    name: 'Conveyor Belt Guard Rail Replacement',
+    mineId: 'mine-b',
+    mineName: 'Mine B — Jharia Underground',
+    status: 'In Progress',
+    startDate: '2026-08-20T00:00:00+05:30',
+    endDate: '2026-09-15T00:00:00+05:30',
+    compliance: 68,
+  },
+  {
+    id: 'PRJ-090',
+    contractorId: 'contractor-1',
+    name: 'Overburden Dump Access Road Maintenance',
+    mineId: 'mine-b',
+    mineName: 'Mine B — Jharia Underground',
+    status: 'Completed',
+    startDate: '2026-04-01T00:00:00+05:30',
+    endDate: '2026-06-30T00:00:00+05:30',
+    compliance: 91,
+  },
+];
+
+export const CONTRACTOR_REPORT_TYPES = ['Daily Report', 'Safety Report', 'Incident Report', 'Progress Report'];
+
+export const mockContractorReports = [
+  {
+    id: 'CR-501',
+    contractorId: 'contractor-1',
+    type: 'Safety Report',
+    mineName: 'Mine B — Jharia Underground',
+    date: '2026-09-05T18:00:00+05:30',
+    summary: 'Toolbox talk conducted on fire safety; no incidents. Guard rail fabrication 60% complete.',
+    status: 'Submitted',
+  },
+  {
+    id: 'CR-500',
+    contractorId: 'contractor-1',
+    type: 'Daily Report',
+    mineName: 'Mine B — Jharia Underground',
+    date: '2026-09-05T09:00:00+05:30',
+    summary: '32 workers on site, 2 on leave. Weather clear. No stoppages.',
+    status: 'Submitted',
+  },
+  {
+    id: 'CR-499',
+    contractorId: 'contractor-1',
+    type: 'Progress Report',
+    mineName: 'Mine B — Jharia Underground',
+    date: '2026-09-03T17:00:00+05:30',
+    summary: 'East gallery fire safety upgrade at 74% completion, on schedule for 30 Sep deadline.',
+    status: 'Submitted',
+  },
+  {
+    id: 'CR-498',
+    contractorId: 'contractor-1',
+    type: 'Incident Report',
+    mineName: 'Mine B — Jharia Underground',
+    date: '2026-08-27T11:20:00+05:30',
+    summary: 'Minor hand injury during guard rail fabrication; first aid administered, worker returned to duty.',
+    status: 'Submitted',
+  },
+];
+
+export const mockAttendance = [
+  { id: 'ATT-1', contractorId: 'contractor-1', date: '2026-09-05T00:00:00+05:30', workers: 34, present: 32, absent: 2 },
+  { id: 'ATT-2', contractorId: 'contractor-1', date: '2026-09-04T00:00:00+05:30', workers: 34, present: 33, absent: 1 },
+  { id: 'ATT-3', contractorId: 'contractor-1', date: '2026-09-03T00:00:00+05:30', workers: 34, present: 30, absent: 4 },
+  { id: 'ATT-4', contractorId: 'contractor-1', date: '2026-09-02T00:00:00+05:30', workers: 32, present: 32, absent: 0 },
+  { id: 'ATT-5', contractorId: 'contractor-1', date: '2026-09-01T00:00:00+05:30', workers: 32, present: 29, absent: 3 },
+];
+
+export const mockSafetyRequirements = [
+  { id: 'SR-1', contractorId: 'contractor-1', requirement: 'PPE Training', status: 'Valid', expiryDate: '2027-01-15T00:00:00+05:30' },
+  { id: 'SR-2', contractorId: 'contractor-1', requirement: 'Safety Induction', status: 'Valid', expiryDate: '2026-12-01T00:00:00+05:30' },
+  { id: 'SR-3', contractorId: 'contractor-1', requirement: 'Equipment Certification', status: 'Expiring Soon', expiryDate: '2026-09-20T00:00:00+05:30' },
+  { id: 'SR-4', contractorId: 'contractor-1', requirement: 'First Aid', status: 'Expired', expiryDate: '2026-08-10T00:00:00+05:30' },
+  { id: 'SR-5', contractorId: 'contractor-1', requirement: 'Fire Safety Awareness', status: 'Valid', expiryDate: '2027-03-01T00:00:00+05:30' },
+];
+
+export const mockContractorDocuments = [
+  { id: 'CD-1', contractorId: 'contractor-1', name: 'PPE-training-roster-2026.pdf', type: 'Training Record', uploadedDate: '2026-08-15T00:00:00+05:30' },
+  { id: 'CD-2', contractorId: 'contractor-1', name: 'guard-rail-workorder.pdf', type: 'Work Order', uploadedDate: '2026-08-28T00:00:00+05:30' },
+  { id: 'CD-3', contractorId: 'contractor-1', name: 'equipment-cert-KB14.pdf', type: 'Certification', uploadedDate: '2026-06-01T00:00:00+05:30' },
+  { id: 'CD-4', contractorId: 'contractor-1', name: 'incident-report-0827.pdf', type: 'Incident Report', uploadedDate: '2026-08-27T00:00:00+05:30' },
+];
+
+export const mockRiskNotifications = [
+  {
+    id: 'CRN-1',
+    contractorId: 'contractor-1',
+    date: '2026-09-05T08:15:00+05:30',
+    delta: 8,
+    message: 'Risk score increased following flag F-1021 (expired fire extinguisher, east gallery) and CA-1042 becoming overdue.',
+  },
+  {
+    id: 'CRN-2',
+    contractorId: 'contractor-1',
+    date: '2026-08-28T10:00:00+05:30',
+    delta: 5,
+    message: 'Risk score increased after a recurring PPE non-compliance pattern was detected (7 occurrences in 90 days).',
+  },
+  {
+    id: 'CRN-3',
+    contractorId: 'contractor-1',
+    date: '2026-08-10T09:00:00+05:30',
+    delta: -3,
+    message: 'Risk score decreased after First Aid certification was renewed for the site safety team.',
+  },
+];
+
+export const mockContractorPerformance = {
+  'contractor-1': { safetyCompliance: 71, taskCompletion: 82, inspectionScore: 64, documentation: 78, overall: 74 },
+  'contractor-2': { safetyCompliance: 88, taskCompletion: 90, inspectionScore: 85, documentation: 91, overall: 88 },
+  'contractor-3': { safetyCompliance: 93, taskCompletion: 89, inspectionScore: 92, documentation: 90, overall: 91 },
+  'contractor-4': { safetyCompliance: 95, taskCompletion: 94, inspectionScore: 93, documentation: 96, overall: 95 },
+};
 
 export const mockDashboardStats = {
   totalMines: mockMines.length,
