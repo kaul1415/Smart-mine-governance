@@ -11,4 +11,19 @@ async function getOverdueActions() {
   return apiClient.get('/corrective-actions?overdue=true');
 }
 
-export const correctiveActionService = { getCorrectiveActions, getOverdueActions };
+async function getCorrectiveActionsForFlag(flagId) {
+  if (USE_MOCKS) return mockDelay(mockCorrectiveActions.filter((a) => a.flagId === flagId));
+  return apiClient.get(`/corrective-actions?flagId=${flagId}`);
+}
+
+async function getCorrectiveActionById(id) {
+  if (USE_MOCKS) return mockDelay(mockCorrectiveActions.find((a) => a.id === id) ?? null);
+  return apiClient.get(`/corrective-actions/${id}`);
+}
+
+export const correctiveActionService = {
+  getCorrectiveActions,
+  getOverdueActions,
+  getCorrectiveActionsForFlag,
+  getCorrectiveActionById,
+};

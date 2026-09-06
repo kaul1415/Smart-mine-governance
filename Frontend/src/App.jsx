@@ -4,6 +4,12 @@ import DashboardLayout from './layouts/DashboardLayout.jsx';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
 import Login from './pages/auth/Login.jsx';
 import Dashboard from './pages/dashboard/Dashboard.jsx';
+import FlagsList from './pages/flags/FlagsList.jsx';
+import NewFlag from './pages/flags/NewFlag.jsx';
+import FlagDetails from './pages/flags/FlagDetails.jsx';
+import ResponsesList from './pages/responses/ResponsesList.jsx';
+import ResponseDetails from './pages/responses/ResponseDetails.jsx';
+import AuditTrail from './pages/audit/AuditTrail.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -12,12 +18,6 @@ import NotFound from './pages/NotFound.jsx';
 // every module. Each entry maps 1:1 to the route list in the project
 // brief and gets swapped for the real page as its phase is built.
 const PLACEHOLDER_ROUTES = [
-  { path: '/flags', title: 'Flags', phase: 'Phase 2' },
-  { path: '/flags/new', title: 'New Flag', phase: 'Phase 2' },
-  { path: '/flags/:id', title: 'Flag Details', phase: 'Phase 2' },
-  { path: '/responses', title: 'Regulatory Responses', phase: 'Phase 2' },
-  { path: '/responses/:id', title: 'Response Details', phase: 'Phase 2' },
-  { path: '/audit-logs', title: 'Audit Trail', phase: 'Phase 2' },
   { path: '/mines', title: 'Mines', phase: 'Phase 3' },
   { path: '/mines/:id', title: 'Mine Details', phase: 'Phase 3' },
   { path: '/compliance', title: 'Compliance', phase: 'Phase 3' },
@@ -62,6 +62,14 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
+
+        <Route path="/flags" element={<FlagsList />} />
+        <Route path="/flags/new" element={<NewFlag />} />
+        <Route path="/flags/:id" element={<FlagDetails />} />
+        <Route path="/responses" element={<ResponsesList />} />
+        <Route path="/responses/:id" element={<ResponseDetails />} />
+        <Route path="/audit-logs" element={<AuditTrail />} />
+
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />
         ))}
