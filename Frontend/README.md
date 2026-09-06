@@ -1,4 +1,4 @@
-# MineGov — Frontend (Phase 1)
+# MineGov AI — Frontend (Phase 1)
 
 AI-Based Smart Governance and Compliance Monitoring System for Coal Mines — frontend prototype for Smart India Hackathon.
 

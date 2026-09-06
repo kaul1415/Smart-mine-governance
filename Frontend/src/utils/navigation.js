@@ -15,6 +15,12 @@ import {
   Bot,
   Bell,
   Settings,
+  FolderKanban,
+  ClipboardList,
+  CalendarCheck,
+  HardHat,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-react';
 import { ROLES } from './roles.js';
 
@@ -94,7 +100,34 @@ export const NAV_SECTIONS = [
   },
 ];
 
+// A Contractor logs into a self-service portal, not the governance
+// shell above — an entirely separate nav, per the project brief.
+export const CONTRACTOR_NAV_SECTIONS = [
+  {
+    items: [
+      { label: 'My Dashboard', path: '/contractor/dashboard', icon: LayoutDashboard },
+      { label: 'My Projects', path: '/contractor/projects', icon: FolderKanban },
+      { label: 'My Reports', path: '/contractor/reports', icon: ClipboardList },
+      { label: 'Attendance', path: '/contractor/attendance', icon: CalendarCheck },
+      { label: 'Safety Requirements', path: '/contractor/safety', icon: HardHat },
+      { label: 'Assigned Corrective Actions', path: '/contractor/actions', icon: Wrench },
+      { label: 'Documents', path: '/contractor/documents', icon: FileText },
+      { label: 'Risk Notifications', path: '/contractor/risk', icon: AlertTriangle },
+      { label: 'Performance', path: '/contractor/performance', icon: TrendingUp },
+    ],
+  },
+  {
+    items: [
+      { label: 'AI Copilot', path: '/copilot', icon: Bot },
+      { label: 'Notifications', path: '/notifications', icon: Bell },
+      { label: 'Settings', path: '/settings', icon: Settings },
+    ],
+  },
+];
+
 export function navForRole(role) {
+  if (role === ROLES.CONTRACTOR) return CONTRACTOR_NAV_SECTIONS;
+
   return NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => !item.roles || item.roles.includes(role)),

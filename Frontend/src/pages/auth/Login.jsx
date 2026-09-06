@@ -19,8 +19,9 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      await login({ email: email || `${role}@minegov.ai`, password, role });
-      const redirectTo = location.state?.from?.pathname || '/dashboard';
+      const user = await login({ email: email || `${role}@minegov.ai`, password, role });
+      const defaultPath = user.role === ROLES.CONTRACTOR ? '/contractor/dashboard' : '/dashboard';
+      const redirectTo = location.state?.from?.pathname || defaultPath;
       navigate(redirectTo, { replace: true });
     } catch {
       // authError is already surfaced from context

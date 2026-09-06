@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, Bell, ChevronDown, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.js';
 import { roleLabel } from '../../utils/roles.js';
-import { mockAlerts } from '../../data/mockData.js';
+import { notificationService } from '../../services/notificationService.js';
 
 function initials(name = '') {
   return name
@@ -16,8 +16,13 @@ function initials(name = '') {
 
 export default function Topbar({ onMenuClick }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const unreadCount = mockAlerts.length;
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    notificationService.getUnreadCount().then(setUnreadCount);
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface-card px-4 sm:px-6">

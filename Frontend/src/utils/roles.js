@@ -41,3 +41,16 @@ export function roleLabel(role) {
 export function canSeeReporterIdentity(role) {
   return ROLES_THAT_SEE_REPORTER_IDENTITY.includes(role);
 }
+
+// Roles that may submit an official regulatory response to a flag.
+// UI-only gate — see the note at the top of this file.
+export const ROLES_THAT_CAN_RESPOND = [
+  ROLES.CORPORATE_ADMIN,
+  ROLES.MINE_MANAGER,
+  ROLES.SAFETY_OFFICER,
+  ROLES.REGULATOR,
+];
+
+export function canSubmitResponse(role) {
+  return ROLES_THAT_CAN_RESPOND.includes(role);
+}
