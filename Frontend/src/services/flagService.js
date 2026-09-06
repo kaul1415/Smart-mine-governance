@@ -28,6 +28,11 @@ async function getFlagById(id) {
   return apiClient.get(`/flags/${id}`); // GET /flags/:id
 }
 
+async function getFlagsForMine(mineId) {
+  if (USE_MOCKS) return mockDelay(flags.filter((f) => f.mineId === mineId));
+  return apiClient.get(`/flags?mineId=${mineId}`);
+}
+
 async function createFlag(payload) {
   if (USE_MOCKS) {
     const newFlag = {
@@ -54,4 +59,4 @@ async function updateFlag(id, patch) {
   return apiClient.patch(`/flags/${id}`, patch); // PATCH /flags/:id
 }
 
-export const flagService = { getFlags, getRecentFlags, getFlagsByCategory, getFlagById, createFlag, updateFlag };
+export const flagService = { getFlags, getRecentFlags, getFlagsByCategory, getFlagById, getFlagsForMine, createFlag, updateFlag };

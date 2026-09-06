@@ -10,6 +10,15 @@ import FlagDetails from './pages/flags/FlagDetails.jsx';
 import ResponsesList from './pages/responses/ResponsesList.jsx';
 import ResponseDetails from './pages/responses/ResponseDetails.jsx';
 import AuditTrail from './pages/audit/AuditTrail.jsx';
+import MinesList from './pages/mines/MinesList.jsx';
+import MineDetails from './pages/mines/MineDetails.jsx';
+import ComplianceList from './pages/compliance/ComplianceList.jsx';
+import ComplianceDetails from './pages/compliance/ComplianceDetails.jsx';
+import InspectionsList from './pages/inspections/InspectionsList.jsx';
+import NewInspection from './pages/inspections/NewInspection.jsx';
+import InspectionDetails from './pages/inspections/InspectionDetails.jsx';
+import CorrectiveActionsList from './pages/correctiveActions/CorrectiveActionsList.jsx';
+import CorrectiveActionDetails from './pages/correctiveActions/CorrectiveActionDetails.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -18,15 +27,6 @@ import NotFound from './pages/NotFound.jsx';
 // every module. Each entry maps 1:1 to the route list in the project
 // brief and gets swapped for the real page as its phase is built.
 const PLACEHOLDER_ROUTES = [
-  { path: '/mines', title: 'Mines', phase: 'Phase 3' },
-  { path: '/mines/:id', title: 'Mine Details', phase: 'Phase 3' },
-  { path: '/compliance', title: 'Compliance', phase: 'Phase 3' },
-  { path: '/compliance/:id', title: 'Compliance Requirement', phase: 'Phase 3' },
-  { path: '/inspections', title: 'Inspections', phase: 'Phase 3' },
-  { path: '/inspections/new', title: 'New Inspection', phase: 'Phase 3' },
-  { path: '/inspections/:id', title: 'Inspection Details', phase: 'Phase 3' },
-  { path: '/corrective-actions', title: 'Corrective Actions', phase: 'Phase 3' },
-  { path: '/corrective-actions/:id', title: 'Corrective Action Details', phase: 'Phase 3' },
   { path: '/risk', title: 'Risk Intelligence', phase: 'Phase 4' },
   { path: '/risk/map', title: 'Risk Map', phase: 'Phase 4' },
   { path: '/notifications', title: 'Notifications', phase: 'Phase 4' },
@@ -69,6 +69,16 @@ export default function App() {
         <Route path="/responses" element={<ResponsesList />} />
         <Route path="/responses/:id" element={<ResponseDetails />} />
         <Route path="/audit-logs" element={<AuditTrail />} />
+
+        <Route path="/mines" element={<MinesList />} />
+        <Route path="/mines/:id" element={<MineDetails />} />
+        <Route path="/compliance" element={<ComplianceList />} />
+        <Route path="/compliance/:id" element={<ComplianceDetails />} />
+        <Route path="/inspections" element={<InspectionsList />} />
+        <Route path="/inspections/new" element={<NewInspection />} />
+        <Route path="/inspections/:id" element={<InspectionDetails />} />
+        <Route path="/corrective-actions" element={<CorrectiveActionsList />} />
+        <Route path="/corrective-actions/:id" element={<CorrectiveActionDetails />} />
 
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />
