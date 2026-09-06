@@ -1,9 +1,10 @@
 import { apiClient, USE_MOCKS, mockDelay } from './api.js';
-import { mockRiskScores } from '../data/mockData.js';
+import { mockRiskScores, mockRecurringIssues } from '../data/mockData.js';
 
-// NOTE: risk scores are always computed by the backend/AI service.
-// This layer only ever fetches and returns what the server sends —
-// no scoring logic belongs in the frontend.
+// NOTE: risk scores and recurring-issue patterns are always computed
+// by the backend/AI service. This layer only ever fetches and
+// returns what the server sends — no scoring or pattern-detection
+// logic belongs in the frontend.
 
 async function getRiskScores() {
   if (USE_MOCKS) return mockDelay(mockRiskScores);
@@ -15,4 +16,9 @@ async function getRiskForMine(mineId) {
   return apiClient.get(`/risk/mines/${mineId}`); // GET /risk/mines/:id
 }
 
-export const riskService = { getRiskScores, getRiskForMine };
+async function getRecurringIssues() {
+  if (USE_MOCKS) return mockDelay(mockRecurringIssues);
+  return apiClient.get('/risk/recurring-issues');
+}
+
+export const riskService = { getRiskScores, getRiskForMine, getRecurringIssues };

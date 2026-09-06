@@ -19,6 +19,9 @@ import NewInspection from './pages/inspections/NewInspection.jsx';
 import InspectionDetails from './pages/inspections/InspectionDetails.jsx';
 import CorrectiveActionsList from './pages/correctiveActions/CorrectiveActionsList.jsx';
 import CorrectiveActionDetails from './pages/correctiveActions/CorrectiveActionDetails.jsx';
+import RiskIntelligence from './pages/risk/RiskIntelligence.jsx';
+import RiskMap from './pages/risk/RiskMap.jsx';
+import NotificationsCenter from './pages/notifications/NotificationsCenter.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -27,9 +30,6 @@ import NotFound from './pages/NotFound.jsx';
 // every module. Each entry maps 1:1 to the route list in the project
 // brief and gets swapped for the real page as its phase is built.
 const PLACEHOLDER_ROUTES = [
-  { path: '/risk', title: 'Risk Intelligence', phase: 'Phase 4' },
-  { path: '/risk/map', title: 'Risk Map', phase: 'Phase 4' },
-  { path: '/notifications', title: 'Notifications', phase: 'Phase 4' },
   { path: '/contractors', title: 'Contractors', phase: 'Phase 5' },
   { path: '/contractors/:id', title: 'Contractor Details', phase: 'Phase 5' },
   { path: '/contractor/dashboard', title: 'Contractor Dashboard', phase: 'Phase 5' },
@@ -79,6 +79,10 @@ export default function App() {
         <Route path="/inspections/:id" element={<InspectionDetails />} />
         <Route path="/corrective-actions" element={<CorrectiveActionsList />} />
         <Route path="/corrective-actions/:id" element={<CorrectiveActionDetails />} />
+
+        <Route path="/risk" element={<RiskIntelligence />} />
+        <Route path="/risk/map" element={<RiskMap />} />
+        <Route path="/notifications" element={<NotificationsCenter />} />
 
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />
