@@ -8,7 +8,7 @@ import { canSeeReporterIdentity } from '../../utils/roles.js';
 // roles in the first place.
 export default function ReporterIdentity({ flag }) {
   const { user } = useAuth();
-  const canReveal = flag.isConfidential ? canSeeReporterIdentity(user?.role) : true;
+  const canReveal = flag.isConfidential ? canSeeReporterIdentity(user) : true;
 
   if (!canReveal) {
     return (

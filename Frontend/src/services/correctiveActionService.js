@@ -28,6 +28,22 @@ async function getCorrectiveActionById(id) {
   return apiClient.get(`/corrective-actions/${id}`);
 }
 
+async function createCorrectiveAction(payload) {
+  if (USE_MOCKS) {
+    const newAction = {
+      id: `CA-${1042 + actions.length + 1}`,
+      status: 'Open',
+      isOverdue: false,
+      evidence: [],
+      comments: [],
+      ...payload,
+    };
+    actions = [newAction, ...actions];
+    return mockDelay(newAction, 500);
+  }
+  return apiClient.post('/corrective-actions', payload); // POST /corrective-actions
+}
+
 async function updateCorrectiveAction(id, patch) {
   if (USE_MOCKS) {
     actions = actions.map((a) => (a.id === id ? { ...a, ...patch } : a));
@@ -51,6 +67,7 @@ export const correctiveActionService = {
   getCorrectiveActionsForFlag,
   getCorrectiveActionsForMine,
   getCorrectiveActionById,
+  createCorrectiveAction,
   updateCorrectiveAction,
   addComment,
 };

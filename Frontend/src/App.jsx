@@ -33,6 +33,10 @@ import AssignedActions from './pages/contractor/AssignedActions.jsx';
 import ContractorDocuments from './pages/contractor/ContractorDocuments.jsx';
 import RiskNotifications from './pages/contractor/RiskNotifications.jsx';
 import Performance from './pages/contractor/Performance.jsx';
+import DocumentIntelligence from './pages/documents/DocumentIntelligence.jsx';
+import AICopilot from './pages/copilot/AICopilot.jsx';
+import Reports from './pages/reports/Reports.jsx';
+import FieldReporting from './pages/field/FieldReporting.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -41,9 +45,6 @@ import NotFound from './pages/NotFound.jsx';
 // every module. Each entry maps 1:1 to the route list in the project
 // brief and gets swapped for the real page as its phase is built.
 const PLACEHOLDER_ROUTES = [
-  { path: '/documents', title: 'Document Intelligence', phase: 'Phase 6' },
-  { path: '/copilot', title: 'AI Copilot', phase: 'Phase 6' },
-  { path: '/reports', title: 'Reports', phase: 'Phase 6' },
   { path: '/settings', title: 'Settings', phase: 'Phase 8' },
 ];
 
@@ -95,6 +96,11 @@ export default function App() {
         <Route path="/contractor/documents" element={<ContractorDocuments />} />
         <Route path="/contractor/risk" element={<RiskNotifications />} />
         <Route path="/contractor/performance" element={<Performance />} />
+
+        <Route path="/documents" element={<DocumentIntelligence />} />
+        <Route path="/copilot" element={<AICopilot />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/field" element={<FieldReporting />} />
 
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />

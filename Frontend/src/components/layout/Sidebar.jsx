@@ -3,6 +3,7 @@ import { ShieldCheck, X, LogOut } from 'lucide-react';
 import { navForRole } from '../../utils/navigation.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { roleLabel } from '../../utils/roles.js';
+import { departmentLabel } from '../../utils/departments.js';
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
@@ -84,7 +85,8 @@ export default function Sidebar({ isOpen, onClose }) {
             Logout
           </button>
           <p className="px-3 pt-2 text-[11px] text-white/40">
-            {user ? roleLabel(user.role) : ''} · SIH Prototype
+            {user ? roleLabel(user.role) : ''}
+            {user?.department && ` · ${departmentLabel(user.department)}`}
           </p>
         </div>
       </aside>
