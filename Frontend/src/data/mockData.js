@@ -4,14 +4,15 @@
 // expects; see BACKEND_API_CONTRACT.md for the real API shape.
 
 import { ROLES } from '../utils/roles.js';
+import { DEPARTMENTS } from '../utils/departments.js';
 
 export const mockUsers = [
-  { id: 'u1', name: 'Ananya Rao', email: 'admin@minegov.ai', role: ROLES.CORPORATE_ADMIN },
-  { id: 'u2', name: 'Vikram Sethi', email: 'manager@minegov.ai', role: ROLES.MINE_MANAGER, mineId: 'mine-b' },
-  { id: 'u3', name: 'Priya Nair', email: 'safety@minegov.ai', role: ROLES.SAFETY_OFFICER },
-  { id: 'u4', name: 'Arjun Mehta', email: 'inspector@minegov.ai', role: ROLES.FIELD_INSPECTOR },
-  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR, contractorId: 'contractor-1' },
-  { id: 'u6', name: 'Coal Controller Office', email: 'regulator@minegov.ai', role: ROLES.REGULATOR },
+  { id: 'u1', name: 'Ananya Rao', email: 'admin@minegov.ai', role: ROLES.CORPORATE_ADMIN, department: DEPARTMENTS.SYSTEM },
+  { id: 'u2', name: 'Vikram Sethi', email: 'manager@minegov.ai', role: ROLES.MINE_MANAGER, mineId: 'mine-b', department: DEPARTMENTS.OPERATIONS },
+  { id: 'u3', name: 'Priya Nair', email: 'safety@minegov.ai', role: ROLES.SAFETY_OFFICER, department: DEPARTMENTS.SAFETY },
+  { id: 'u4', name: 'Arjun Mehta', email: 'inspector@minegov.ai', role: ROLES.FIELD_INSPECTOR, department: DEPARTMENTS.SAFETY },
+  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR, contractorId: 'contractor-1', department: DEPARTMENTS.CONTRACTOR_MANAGEMENT },
+  { id: 'u6', name: 'Coal Controller Office', email: 'regulator@minegov.ai', role: ROLES.REGULATOR, department: DEPARTMENTS.REGULATORY_AFFAIRS },
 ];
 
 export const mockMines = [

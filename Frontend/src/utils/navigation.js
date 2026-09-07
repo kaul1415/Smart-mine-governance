@@ -21,6 +21,7 @@ import {
   HardHat,
   AlertTriangle,
   TrendingUp,
+  Radio,
 } from 'lucide-react';
 import { ROLES } from './roles.js';
 
@@ -68,6 +69,12 @@ export const NAV_SECTIONS = [
         path: '/inspections',
         icon: ClipboardCheck,
         roles: [ROLES.CORPORATE_ADMIN, ROLES.MINE_MANAGER, ROLES.SAFETY_OFFICER, ROLES.FIELD_INSPECTOR, ROLES.REGULATOR],
+      },
+      {
+        label: 'Field Reporting',
+        path: '/field',
+        icon: Radio,
+        roles: [ROLES.CORPORATE_ADMIN, ROLES.MINE_MANAGER, ROLES.SAFETY_OFFICER, ROLES.FIELD_INSPECTOR],
       },
       { label: 'Corrective Actions', path: '/corrective-actions', icon: Wrench, roles: null },
       {

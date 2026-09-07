@@ -1,4 +1,4 @@
-import { ROLES } from './roles.js';
+import { ROLES, hasAdminAccess } from './roles.js';
 
 // UI-only workflow map. Buttons shown here reflect what a role would
 // typically do next; the backend remains the source of truth for
@@ -18,6 +18,11 @@ const TRANSITIONS = {
   Closed: [],
 };
 
-export function actionsForCorrectiveAction(status, role) {
-  return (TRANSITIONS[status] || []).filter((t) => t.roles.includes(role));
+// Accepts the full user object: a System Department member sees
+// every transition for the current status, mirroring the admin-level
+// access they'll have once the backend enforces departments.
+export function actionsForCorrectiveAction(status, user) {
+  const all = TRANSITIONS[status] || [];
+  if (hasAdminAccess(user)) return all;
+  return all.filter((t) => t.roles.includes(user?.role));
 }

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, Bell, ChevronDown, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.js';
 import { roleLabel } from '../../utils/roles.js';
+import { departmentLabel } from '../../utils/departments.js';
 import { notificationService } from '../../services/notificationService.js';
 
 function initials(name = '') {
@@ -59,7 +60,10 @@ export default function Topbar({ onMenuClick }) {
           </span>
           <span className="hidden text-left sm:block">
             <span className="block text-sm font-medium leading-tight text-ink-900">{user?.name}</span>
-            <span className="block text-xs leading-tight text-ink-500">{roleLabel(user?.role)}</span>
+            <span className="block text-xs leading-tight text-ink-500">
+              {roleLabel(user?.role)}
+              {user?.department && ` · ${departmentLabel(user.department)}`}
+            </span>
           </span>
           <ChevronDown size={16} className="hidden text-ink-500 sm:block" />
         </button>

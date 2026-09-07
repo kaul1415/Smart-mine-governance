@@ -153,7 +153,7 @@ export default function FlagDetails() {
                 ))}
               </div>
             )}
-            {canSubmitResponse(user?.role) && (
+            {canSubmitResponse(user) && (
               <div className="mt-3">
                 <SubmitResponseForm authorName={user.name} onSubmit={handleSubmitResponse} />
               </div>

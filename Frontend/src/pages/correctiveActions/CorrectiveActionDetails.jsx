@@ -88,7 +88,7 @@ export default function CorrectiveActionDetails() {
     );
   }
 
-  const availableTransitions = actionsForCorrectiveAction(action.status, user?.role);
+  const availableTransitions = actionsForCorrectiveAction(action.status, user);
   const overdue = isOverdue(action.dueDate, action.status);
 
   return (

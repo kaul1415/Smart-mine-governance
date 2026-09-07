@@ -36,6 +36,7 @@ import Performance from './pages/contractor/Performance.jsx';
 import DocumentIntelligence from './pages/documents/DocumentIntelligence.jsx';
 import AICopilot from './pages/copilot/AICopilot.jsx';
 import Reports from './pages/reports/Reports.jsx';
+import FieldReporting from './pages/field/FieldReporting.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -99,6 +100,7 @@ export default function App() {
         <Route path="/documents" element={<DocumentIntelligence />} />
         <Route path="/copilot" element={<AICopilot />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/field" element={<FieldReporting />} />
 
         {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
           <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />

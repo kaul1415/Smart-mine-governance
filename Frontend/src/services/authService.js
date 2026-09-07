@@ -4,20 +4,30 @@ import { mockUsers } from '../data/mockData.js';
 const TOKEN_KEY = 'minegov_auth_token';
 const USER_KEY = 'minegov_auth_user';
 
-async function login({ email, role }) {
+// `department` is accepted alongside `role` so the login flow — and
+// the backend contract behind it — is ready for department-based
+// authorization: POST /auth/login { email, password, role, department }.
+// A department passed at login overrides the mock user's default,
+// which is what lets a demo login prove out the System Department
+// admin-access override for any role.
+async function login({ email, role, department }) {
   if (USE_MOCKS) {
     const user = mockUsers.find((u) => u.role === role) || {
       id: 'guest',
       name: email.split('@')[0],
       email,
       role,
+      department,
     };
-    const session = { user: { ...user, email: email || user.email }, token: `mock-token-${user.id}` };
+    const session = {
+      user: { ...user, email: email || user.email, department: department || user.department },
+      token: `mock-token-${user.id}`,
+    };
     return mockDelay(session, 450);
   }
 
-  // Real backend contract: POST /auth/login { email, password, role }
-  return apiClient.post('/auth/login', { email, role });
+  // Real backend contract: POST /auth/login { email, password, role, department }
+  return apiClient.post('/auth/login', { email, role, department });
 }
 
 function persistSession(session) {
