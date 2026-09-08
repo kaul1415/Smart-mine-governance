@@ -39,7 +39,12 @@ export default function FileUploader({ files, onChange, accept = 'image/*,.pdf',
                 <Paperclip size={14} className="shrink-0 text-ink-500" />
                 <span className="truncate">{file.name}</span>
               </span>
-              <button type="button" onClick={() => removeAt(i)} className="shrink-0 text-ink-500 hover:text-status-danger">
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                aria-label={`Remove ${file.name}`}
+                className="shrink-0 text-ink-500 hover:text-status-danger"
+              >
                 <X size={14} />
               </button>
             </li>

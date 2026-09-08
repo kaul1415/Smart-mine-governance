@@ -15,8 +15,8 @@ export default function ConfirmDialog({ open, title, description, confirmLabel =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/40 px-4">
-      <div className="w-full max-w-sm rounded-md bg-surface-card p-5 shadow-popover">
-        <h3 className="text-sm font-semibold text-ink-900">{title}</h3>
+      <div role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" className="w-full max-w-sm rounded-md bg-surface-card p-5 shadow-popover">
+        <h3 id="confirm-dialog-title" className="text-sm font-semibold text-ink-900">{title}</h3>
         {description && <p className="mt-1.5 text-sm text-ink-500">{description}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onCancel}>

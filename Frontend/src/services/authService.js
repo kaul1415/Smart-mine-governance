@@ -1,33 +1,51 @@
 import { apiClient, USE_MOCKS, mockDelay } from './api.js';
 import { mockUsers } from '../data/mockData.js';
+import { ROLES } from '../utils/roles.js';
+import { departmentLabel } from '../utils/departments.js';
+import { roleForDepartment } from '../utils/departmentConfig.js';
 
 const TOKEN_KEY = 'minegov_auth_token';
 const USER_KEY = 'minegov_auth_user';
 
-// `department` is accepted alongside `role` so the login flow — and
-// the backend contract behind it — is ready for department-based
-// authorization: POST /auth/login { email, password, role, department }.
-// A department passed at login overrides the mock user's default,
-// which is what lets a demo login prove out the System Department
-// admin-access override for any role.
-async function login({ email, role, department }) {
+// Three login paths share this one function:
+//  - loginType "department": department is required; role is derived
+//    from it via roleForDepartment() (department → role → permissions).
+//  - loginType "contractor" / "regulator": no department (external
+//    parties, not one of the internal departments); role is fixed.
+//
+// Real backend contract: POST /auth/login { username, password, loginType, department? }
+// The backend should return { user: { id, name, email, role, department?, contractorId? }, token }.
+async function login({ username, password, loginType, department }) {
   if (USE_MOCKS) {
-    const user = mockUsers.find((u) => u.role === role) || {
-      id: 'guest',
-      name: email.split('@')[0],
-      email,
-      role,
-      department,
-    };
+    let user;
+
+    if (loginType === 'contractor') {
+      user = mockUsers.find((u) => u.role === ROLES.CONTRACTOR);
+    } else if (loginType === 'regulator') {
+      user = mockUsers.find((u) => u.role === ROLES.REGULATOR);
+    } else {
+      // Department login: prefer a seeded mock user for that
+      // department (so the demo has real linked data), otherwise
+      // synthesize a generic officer for that department so every
+      // one of the 15 departments + System is actually usable.
+      const seeded = mockUsers.find((u) => u.department === department);
+      user = seeded || {
+        id: `dept-${department}`,
+        name: username ? `${username} (${departmentLabel(department)})` : `${departmentLabel(department)} Officer`,
+        email: `${username || 'officer'}@minegov.ai`,
+        role: roleForDepartment(department),
+        department,
+      };
+    }
+
     const session = {
-      user: { ...user, email: email || user.email, department: department || user.department },
+      user: { ...user, department: loginType === 'department' ? department : user.department },
       token: `mock-token-${user.id}`,
     };
     return mockDelay(session, 450);
   }
 
-  // Real backend contract: POST /auth/login { email, password, role, department }
-  return apiClient.post('/auth/login', { email, role, department });
+  return apiClient.post('/auth/login', { username, password, loginType, department });
 }
 
 function persistSession(session) {

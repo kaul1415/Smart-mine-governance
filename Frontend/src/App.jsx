@@ -37,16 +37,9 @@ import DocumentIntelligence from './pages/documents/DocumentIntelligence.jsx';
 import AICopilot from './pages/copilot/AICopilot.jsx';
 import Reports from './pages/reports/Reports.jsx';
 import FieldReporting from './pages/field/FieldReporting.jsx';
-import PlaceholderPage from './pages/PlaceholderPage.jsx';
+import Settings from './pages/settings/Settings.jsx';
+import NoticeBoard from './pages/notices/NoticeBoard.jsx';
 import NotFound from './pages/NotFound.jsx';
-
-// Routes scoped to later phases render a PlaceholderPage for now so
-// navigation and layout can be demoed end-to-end without waiting for
-// every module. Each entry maps 1:1 to the route list in the project
-// brief and gets swapped for the real page as its phase is built.
-const PLACEHOLDER_ROUTES = [
-  { path: '/settings', title: 'Settings', phase: 'Phase 8' },
-];
 
 export default function App() {
   return (
@@ -101,10 +94,8 @@ export default function App() {
         <Route path="/copilot" element={<AICopilot />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/field" element={<FieldReporting />} />
-
-        {PLACEHOLDER_ROUTES.map(({ path, title, phase }) => (
-          <Route key={path} path={path} element={<PlaceholderPage title={title} phase={phase} />} />
-        ))}
+        <Route path="/notices" element={<NoticeBoard />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

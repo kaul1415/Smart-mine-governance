@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Send, Bot, AlertTriangle } from 'lucide-react';
+import { Send, Bot, AlertTriangle, Menu } from 'lucide-react';
 import ChatSidebar from '../../components/copilot/ChatSidebar.jsx';
 import ChatMessage from '../../components/copilot/ChatMessage.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
@@ -14,6 +14,7 @@ export default function AICopilot() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [input, setInput] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const scrollRef = useRef(null);
 
   async function loadConversations(selectId) {
@@ -46,6 +47,7 @@ export default function AICopilot() {
 
   async function handleSelect(id) {
     setActiveId(id);
+    setMobileSidebarOpen(false);
   }
 
   async function handleRename(id, title) {
@@ -95,13 +97,22 @@ export default function AICopilot() {
         onNewChat={handleNewChat}
         onRename={handleRename}
         onDelete={handleDelete}
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="rounded p-1.5 text-ink-700 hover:bg-surface-sunken lg:hidden"
+            aria-label="Open chat list"
+          >
+            <Menu size={18} />
+          </button>
           <Bot size={17} className="text-brand-700" />
           <h1 className="text-sm font-semibold text-ink-900">AI Copilot</h1>
-          <span className="text-xs text-ink-500">— ask about mine risk, flags, compliance, or contractors</span>
+          <span className="hidden text-xs text-ink-500 sm:inline">— ask about mine risk, flags, compliance, or contractors</span>
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">

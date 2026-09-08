@@ -53,6 +53,9 @@ export default function Topbar({ onMenuClick }) {
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
+          aria-haspopup="true"
+          aria-expanded={menuOpen}
+          aria-label="Account menu"
           className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-sunken"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800">

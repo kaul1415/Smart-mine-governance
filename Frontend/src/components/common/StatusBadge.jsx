@@ -17,6 +17,13 @@ const STATUS_TONE = {
   'Submitted for Verification': 'info',
   Verified: 'success',
   Rejected: 'danger',
+  // Contractor report workflow (processing + report status)
+  Uploaded: 'info',
+  Processing: 'warning',
+  'OCR Completed': 'success',
+  Draft: 'neutral',
+  Submitted: 'info',
+  Approved: 'success',
 };
 
 const TONE_CLASSES = {
