@@ -8,11 +8,11 @@ import { DEPARTMENTS } from '../utils/departments.js';
 
 export const mockUsers = [
   { id: 'u1', name: 'Ananya Rao', email: 'admin@minegov.ai', role: ROLES.CORPORATE_ADMIN, department: DEPARTMENTS.SYSTEM },
-  { id: 'u2', name: 'Vikram Sethi', email: 'manager@minegov.ai', role: ROLES.MINE_MANAGER, mineId: 'mine-b', department: DEPARTMENTS.OPERATIONS },
-  { id: 'u3', name: 'Priya Nair', email: 'safety@minegov.ai', role: ROLES.SAFETY_OFFICER, department: DEPARTMENTS.SAFETY },
-  { id: 'u4', name: 'Arjun Mehta', email: 'inspector@minegov.ai', role: ROLES.FIELD_INSPECTOR, department: DEPARTMENTS.SAFETY },
-  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR, contractorId: 'contractor-1', department: DEPARTMENTS.CONTRACTOR_MANAGEMENT },
-  { id: 'u6', name: 'Coal Controller Office', email: 'regulator@minegov.ai', role: ROLES.REGULATOR, department: DEPARTMENTS.REGULATORY_AFFAIRS },
+  { id: 'u2', name: 'Vikram Sethi', email: 'manager@minegov.ai', role: ROLES.MINE_MANAGER, mineId: 'mine-b', department: DEPARTMENTS.PRODUCTION },
+  { id: 'u3', name: 'Priya Nair', email: 'safety@minegov.ai', role: ROLES.SAFETY_OFFICER, department: DEPARTMENTS.SAFETY_RESCUE },
+  { id: 'u4', name: 'Arjun Mehta', email: 'inspector@minegov.ai', role: ROLES.FIELD_INSPECTOR, department: DEPARTMENTS.SAFETY_RESCUE },
+  { id: 'u5', name: 'ABC Mining Services', email: 'contractor@minegov.ai', role: ROLES.CONTRACTOR, contractorId: 'contractor-1' },
+  { id: 'u6', name: 'Coal Controller Office', email: 'regulator@minegov.ai', role: ROLES.REGULATOR },
 ];
 
 export const mockMines = [
@@ -1192,45 +1192,105 @@ export const mockContractorProjects = [
 ];
 
 export const CONTRACTOR_REPORT_TYPES = ['Daily Report', 'Safety Report', 'Incident Report', 'Progress Report'];
+export const REPORT_PROCESSING_STATUSES = ['Uploaded', 'Processing', 'OCR Completed'];
+export const REPORT_STATUSES = ['Draft', 'Under Review', 'Submitted', 'Approved', 'Rejected'];
 
+// Contractor "My Reports" records. Note the shape: report content
+// comes from an uploaded document (`document`), not free-typed text —
+// `extractedData` is what the backend/ML OCR service returned for
+// that document. These are a distinct concept from general Contractor
+// → Documents storage (mockContractorDocuments, below).
 export const mockContractorReports = [
   {
     id: 'CR-501',
     contractorId: 'contractor-1',
-    type: 'Safety Report',
-    mineName: 'Mine B — Jharia Underground',
-    date: '2026-09-05T18:00:00+05:30',
-    summary: 'Toolbox talk conducted on fire safety; no incidents. Guard rail fabrication 60% complete.',
-    status: 'Submitted',
+    reportType: 'Safety Report',
+    projectId: 'PRJ-102',
+    projectName: 'Conveyor Belt Guard Rail Replacement',
+    reportDate: '2026-09-05T00:00:00+05:30',
+    comment: 'Weekly safety walkthrough attached.',
+    document: { name: 'safety-report-0905.pdf', size: 482000, type: 'application/pdf' },
+    processingStatus: 'OCR Completed',
+    reportStatus: 'Submitted',
+    submittedDate: '2026-09-05T18:00:00+05:30',
+    extractedData: {
+      contractor: 'ABC Mining Services',
+      project: 'Conveyor Belt Guard Rail Replacement',
+      reportDate: '05 Sep 2026',
+      workProgress: 'Guard rail fabrication 60% complete; installation scheduled to begin 8 Sep.',
+      safetyObservations: 'Toolbox talk conducted on fire safety; all workers wore PPE during the shift.',
+      complianceIssues: 'None identified in this reporting period.',
+      correctiveActions: 'No new corrective actions required.',
+    },
   },
   {
     id: 'CR-500',
     contractorId: 'contractor-1',
-    type: 'Daily Report',
-    mineName: 'Mine B — Jharia Underground',
-    date: '2026-09-05T09:00:00+05:30',
-    summary: '32 workers on site, 2 on leave. Weather clear. No stoppages.',
-    status: 'Submitted',
+    reportType: 'Daily Report',
+    projectId: 'PRJ-101',
+    projectName: 'East Gallery Fire Safety Upgrade',
+    reportDate: '2026-09-05T00:00:00+05:30',
+    comment: '',
+    document: { name: 'daily-log-0905.jpg', size: 210000, type: 'image/jpeg' },
+    processingStatus: 'OCR Completed',
+    reportStatus: 'Submitted',
+    submittedDate: '2026-09-05T09:00:00+05:30',
+    extractedData: {
+      contractor: 'ABC Mining Services',
+      project: 'East Gallery Fire Safety Upgrade',
+      reportDate: '05 Sep 2026',
+      workProgress: '32 workers on site, 2 on leave. Weather clear, no stoppages.',
+      safetyObservations: 'No incidents reported during the shift.',
+      complianceIssues: 'None identified.',
+      correctiveActions: 'None required.',
+    },
   },
   {
     id: 'CR-499',
     contractorId: 'contractor-1',
-    type: 'Progress Report',
-    mineName: 'Mine B — Jharia Underground',
-    date: '2026-09-03T17:00:00+05:30',
-    summary: 'East gallery fire safety upgrade at 74% completion, on schedule for 30 Sep deadline.',
-    status: 'Submitted',
+    reportType: 'Progress Report',
+    projectId: 'PRJ-101',
+    projectName: 'East Gallery Fire Safety Upgrade',
+    reportDate: '2026-09-03T00:00:00+05:30',
+    comment: 'Monthly progress summary.',
+    document: { name: 'progress-report-sep.pdf', size: 615000, type: 'application/pdf' },
+    processingStatus: 'OCR Completed',
+    reportStatus: 'Approved',
+    submittedDate: '2026-09-03T17:00:00+05:30',
+    extractedData: {
+      contractor: 'ABC Mining Services',
+      project: 'East Gallery Fire Safety Upgrade',
+      reportDate: '03 Sep 2026',
+      workProgress: 'Upgrade at 74% completion, on schedule for the 30 Sep deadline.',
+      safetyObservations: 'Fire safety equipment inspection completed for the gallery.',
+      complianceIssues: 'Fire extinguisher certification pending renewal (linked to F-1021).',
+      correctiveActions: 'CA-1042 in progress — extinguisher replacement scheduled.',
+    },
   },
   {
     id: 'CR-498',
     contractorId: 'contractor-1',
-    type: 'Incident Report',
-    mineName: 'Mine B — Jharia Underground',
-    date: '2026-08-27T11:20:00+05:30',
-    summary: 'Minor hand injury during guard rail fabrication; first aid administered, worker returned to duty.',
-    status: 'Submitted',
+    reportType: 'Incident Report',
+    projectId: 'PRJ-102',
+    projectName: 'Conveyor Belt Guard Rail Replacement',
+    reportDate: '2026-08-27T00:00:00+05:30',
+    comment: '',
+    document: { name: 'incident-report-0827.pdf', size: 340000, type: 'application/pdf' },
+    processingStatus: 'OCR Completed',
+    reportStatus: 'Approved',
+    submittedDate: '2026-08-27T11:20:00+05:30',
+    extractedData: {
+      contractor: 'ABC Mining Services',
+      project: 'Conveyor Belt Guard Rail Replacement',
+      reportDate: '27 Aug 2026',
+      workProgress: 'Guard rail fabrication ongoing.',
+      safetyObservations: 'Minor hand injury during fabrication; first aid administered, worker returned to duty.',
+      complianceIssues: 'Incident logged per statutory requirement.',
+      correctiveActions: 'Additional glove PPE issued to fabrication crew.',
+    },
   },
 ];
+
 
 export const mockAttendance = [
   { id: 'ATT-1', contractorId: 'contractor-1', date: '2026-09-05T00:00:00+05:30', workers: 34, present: 32, absent: 2 },
@@ -1434,6 +1494,104 @@ export const REPORT_TYPES = [
   'Corrective Action Report',
   'Risk Report',
   'Monthly Governance Report',
+];
+
+export const NOTICE_CATEGORIES = ['Compliance', 'Safety', 'Corporate', 'Policy', 'System', 'Reporting', 'General'];
+
+// Organization-wide Notice Board — common to every department. A
+// notice's `visibility` is either "All Departments" or an explicit
+// list of department keys; the prototype's seed data is all
+// organization-wide, but the shape already supports scoped notices
+// once the backend needs them.
+export const mockNotices = [
+  {
+    id: 'NTC-1',
+    title: 'Statutory Compliance Filing Window Opens',
+    description: 'The monthly statutory compliance filing window opens 10 Sep and closes 20 Sep. All departments must submit pending returns before the deadline.',
+    category: 'Compliance',
+    priority: 'HIGH',
+    publishedDate: '2026-09-05T09:00:00+05:30',
+    expiryDate: '2026-09-20T18:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-2',
+    title: 'Mandatory Fire Safety Drill — All Sites',
+    description: 'A coordinated fire safety drill will be conducted across all mine sites on 12 Sep. Department heads must confirm participation by 10 Sep.',
+    category: 'Safety',
+    priority: 'HIGH',
+    publishedDate: '2026-09-04T10:30:00+05:30',
+    expiryDate: '2026-09-12T18:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-3',
+    title: 'Quarterly Corporate Planning Review Meeting',
+    description: 'The quarterly corporate planning review is scheduled for 18 Sep, 11:00 AM, corporate office conference hall. Attendance is mandatory for department heads.',
+    category: 'Corporate',
+    priority: 'MEDIUM',
+    publishedDate: '2026-09-03T14:00:00+05:30',
+    expiryDate: '2026-09-18T12:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-4',
+    title: 'Updated Contractor Onboarding Policy',
+    description: 'The contractor onboarding and safety induction policy has been revised effective 1 Sep. All departments engaging contractors should review the updated checklist.',
+    category: 'Policy',
+    priority: 'MEDIUM',
+    publishedDate: '2026-09-01T09:00:00+05:30',
+    expiryDate: '2026-10-01T00:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-5',
+    title: 'Scheduled System Maintenance — 8 Sep, 11 PM–1 AM',
+    description: 'MineGov AI will be briefly unavailable during scheduled maintenance. Please save any in-progress work before 11 PM.',
+    category: 'System',
+    priority: 'LOW',
+    publishedDate: '2026-09-06T16:00:00+05:30',
+    expiryDate: '2026-09-09T01:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-6',
+    title: 'Monthly Governance Report Submission Deadline',
+    description: 'Monthly governance reports for August are due by 10 Sep. Late submissions require Corporate Planning sign-off.',
+    category: 'Reporting',
+    priority: 'MEDIUM',
+    publishedDate: '2026-09-02T09:00:00+05:30',
+    expiryDate: '2026-09-10T18:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-7',
+    title: 'Welfare Department: Annual Health Camp Registration Open',
+    description: 'Registration for the annual employee health camp is now open across all departments. Camp dates: 25–27 Sep.',
+    category: 'General',
+    priority: 'LOW',
+    publishedDate: '2026-08-30T09:00:00+05:30',
+    expiryDate: '2026-09-27T18:00:00+05:30',
+    status: 'Active',
+    visibility: 'All Departments',
+  },
+  {
+    id: 'NTC-8',
+    title: 'Revised Grievance Escalation Timeline',
+    description: 'The Appeal & Grievance Cell has revised the escalation SLA from 10 to 7 working days effective this month.',
+    category: 'Policy',
+    priority: 'LOW',
+    publishedDate: '2026-08-25T09:00:00+05:30',
+    expiryDate: '2026-08-31T18:00:00+05:30',
+    status: 'Expired',
+    visibility: 'All Departments',
+  },
 ];
 
 export const mockDashboardStats = {

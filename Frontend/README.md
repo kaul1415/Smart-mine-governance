@@ -2,7 +2,7 @@
 
 **AI-Enabled Smart Governance and Compliance Monitoring Platform for Indian Coal Mining Operations** — a frontend prototype built for Smart India Hackathon (SIH).
 
-All 8 build phases are complete. This is a full multi-role governance platform: field reporting → flag/ticket workflow → regulatory response → corrective action → compliance/risk impact → management alerting → AI-assisted explanation, across six user roles and a full Contractor Portal, with an offline-first field capture flow and a documented backend API contract.
+All 8 build phases are complete, plus a final architecture refinement pass (department-based login, a common Notice Board, and document-upload-driven Contractor Reports with OCR). This is a full multi-role governance platform: field reporting → flag/ticket workflow → regulatory response → corrective action → compliance/risk impact → management alerting → AI-assisted explanation, across departments/roles and a full Contractor Portal, with an offline-first field capture flow and a documented backend API contract.
 
 ## Run it
 
@@ -20,11 +20,12 @@ npm run preview   # preview the production build locally
 
 ## Try it
 
-On the login screen, enter any email/password and pick a **Role** and **Department**, then sign in.
+The login screen has three tabs: **Department**, **Contractor**, **Regulator**.
 
-- Role shapes which screens and navigation you see (a Contractor gets an entirely separate self-service portal at `/contractor/*`).
-- Department is a second, independent access dimension the real backend will enforce — pick **System** to see admin-level access applied regardless of the role you chose (try it with e.g. Field Inspector + System).
-- Mock credentials aren't required; any email/password combination works.
+- **Department** — pick any of the 15 departments (or **System Department**) from the dropdown, enter any username/password, and sign in. Role and baseline permissions are derived from the department you pick (`department → role → permissions`). Try **System Department** to see organization-wide, admin-level access applied regardless of which department you'd otherwise map to; try **Production** or **Safety & Rescue** to see their existing specialized dashboards; any other department gets a generic Department Officer view.
+- **Contractor** — the separate self-service Contractor Portal at `/contractor/*`.
+- **Regulator** — the external regulator view, preserved from earlier phases.
+- Mock credentials aren't required; any username/password combination works.
 
 ## What's built
 
@@ -52,16 +53,26 @@ A completely separate self-service shell for the Contractor role: `/contractor/d
 ### 8 — Polish
 Settings page (account, role/department, admin-access indicator, notification preferences), accessibility pass (dialog roles, icon-button labels, no nested interactive elements, mobile-responsive chat sidebar), and this document plus `BACKEND_API_CONTRACT.md`.
 
-## Authentication & authorization (API-ready for departments)
+## Authentication & authorization (department-based, API-ready)
 
-Every user carries **both** a `role` (drives which UI they see) and a `department` (the dimension the real backend will authorize against). `department: "system"` grants admin-level access regardless of role — see `src/utils/departments.js` and `hasAdminAccess()` in `src/utils/roles.js`. The login contract is already `POST /auth/login { email, password, role, department }`; wiring the real endpoint is a one-line change in `authService.js`, no component changes needed. Full permission matrix in `BACKEND_API_CONTRACT.md`.
+One common Department Login screen — no separate login page/app per department. `department` is the primary access boundary for internal staff; `role` is derived from it (`department → role → permissions`, see `src/utils/departmentConfig.js`) and still shapes which UI a user sees within that access level. `department === "system"` grants organization-wide, admin-level access regardless of role — see `src/utils/departments.js` and `hasAdminAccess()` in `src/utils/roles.js`. Contractor and Regulator are separate, non-department login paths (external parties).
+
+The login contract is `POST /auth/login { username, password, loginType, department? }`; wiring the real endpoint is a one-line change in `authService.js`, no component changes needed. Full permission matrix and endpoint contract in `BACKEND_API_CONTRACT.md`.
+
+## Common Notice Board
+
+One organization-wide board (`/notices`), visible to every department, Contractor, and Regulator alike — not a separate board per department. A dashboard widget (`NoticeBoardPreviewCard`) surfaces the latest active notices; `noticeService.js` already supports a future `visibility: [department, ...]` shape for department-scoped notices, though the current seed data is all organization-wide.
+
+## Contractor Reports (document upload + OCR)
+
+Contractor → My Reports is upload-driven, not a text editor: pick a report type and project, set the date, upload a PDF/JPG/JPEG/PNG, and the (mock) OCR pipeline extracts the report content for review before final submission — mirroring the same upload → processing → extracted-data pattern already used by Document Intelligence (`documentService.js`). This is a distinct concept from Contractor → Documents (general storage), kept as a separate module per the finalized requirements. See `contractorService.js` (`uploadReport` / `processReport` / `finalizeReport`) and the reusable `DocumentUploader` component.
 
 ## Folder structure
 
 ```
 src/
 ├── components/
-│   ├── common/       # Card, Button, DataTable, FilterBar, Tabs, ConfirmDialog, Timeline, FileUploader, ...
+│   ├── common/       # Card, Button, DataTable, FilterBar, Tabs, ConfirmDialog, Timeline, FileUploader, DocumentUploader, ...
 │   ├── layout/        # Sidebar, Topbar
 │   ├── dashboard/      field/     documents/     copilot/
 │   ├── flags/          risk/      inspections/    contractor-facing bits live under pages/contractor

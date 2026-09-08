@@ -46,7 +46,7 @@ export default function Settings() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <dt className="text-ink-500">Department</dt>
-              <dd className="font-medium text-ink-900">{departmentLabel(user?.department)}</dd>
+              <dd className="font-medium text-ink-900">{user?.department ? departmentLabel(user.department) : 'External (not an internal department)'}</dd>
             </div>
             <div className="flex items-center justify-between text-sm">
               <dt className="text-ink-500">Access Level</dt>

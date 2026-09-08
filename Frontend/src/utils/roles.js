@@ -12,6 +12,11 @@ export const ROLES = {
   FIELD_INSPECTOR: 'field_inspector',
   CONTRACTOR: 'contractor',
   REGULATOR: 'regulator',
+  // Generic baseline role for departments that don't map to one of
+  // the specialized roles above (e.g. Material Management, ERP,
+  // Company Secretary, HRD, ...). See utils/departmentConfig.js for
+  // the department → role mapping this comes from.
+  DEPARTMENT_OFFICER: 'department_officer',
 };
 
 export const ROLE_LABELS = {
@@ -21,6 +26,7 @@ export const ROLE_LABELS = {
   [ROLES.FIELD_INSPECTOR]: 'Field Inspector',
   [ROLES.CONTRACTOR]: 'Contractor',
   [ROLES.REGULATOR]: 'Regulator',
+  [ROLES.DEPARTMENT_OFFICER]: 'Department Officer',
 };
 
 // Roles that land on the standalone Contractor Portal shell rather

@@ -19,11 +19,11 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  async function login({ email, password, role }) {
+  async function login(credentials) {
     setIsAuthenticating(true);
     setAuthError(null);
     try {
-      const session = await authService.login({ email, password, role });
+      const session = await authService.login(credentials);
       authService.persistSession(session);
       setUser(session.user);
       return session.user;

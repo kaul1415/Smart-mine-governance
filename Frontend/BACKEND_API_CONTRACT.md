@@ -15,15 +15,20 @@ The backend team may rename or restructure endpoints; because every page talks t
 
 ## Authentication & Authorization
 
-Authorization has **two independent dimensions**: `role` (what UI a user sees) and `department` (the backend's actual access-control boundary — see [`ROLE_AND_DEPARTMENT_MATRIX`](#role--department-permission-matrix) below). **System Department carries admin-level access regardless of role.** Both are returned on login and should be included on every authenticated user object the backend returns elsewhere (e.g. `assignedAuthority`, `actor` fields), since the frontend uses `department` — not just `role` — to decide what's shown.
+**Final model**: one common **Department Login** screen with a department dropdown — not a separate login page/app per department. `department` is now the primary access boundary for internal Coal India staff; `role` is derived from department (`department → role → permissions`, see `src/utils/departmentConfig.js`) and still shapes which UI a user sees within that access level. **System Department carries organization-wide, admin-level access regardless of role** — see `hasAdminAccess()` in `src/utils/roles.js`.
+
+Contractor and Regulator are **not** part of the department dropdown — they are external parties with their own simple login path (still one shared login screen, selected via a tab rather than the department dropdown).
 
 | Method | Endpoint | Request Body | Response | Auth |
 |---|---|---|---|---|
-| POST | `/auth/login` | `{ email, password, role, department }` | `{ user: { id, name, email, role, department, contractorId? }, token }` | None |
+| POST | `/auth/login` | `{ username, password, loginType: "department" \| "contractor" \| "regulator", department? }` (`department` required and meaningful only when `loginType === "department"`) | `{ user: { id, name, email, role, department?, contractorId? }, token }` | None |
 | POST | `/auth/logout` | — | `204` | Bearer |
 
-**Roles**: `corporate_admin`, `mine_manager`, `safety_officer`, `field_inspector`, `contractor`, `regulator`.
-**Departments**: `system`, `safety`, `environment`, `operations`, `hr_labour`, `contractor_management`, `regulatory_affairs`.
+**Departments** (exact list, `system` + 15): `system`, `production`, `material_management`, `erp`, `engineering_equipment`, `company_secretary`, `clearing_forwarding`, `electronics_telecom`, `hrd`, `appeal_grievance`, `corporate_planning`, `project_monitoring`, `contract_management`, `safety_rescue`, `welfare`.
+
+**Roles** (derived from department for department logins; fixed for contractor/regulator): `corporate_admin` (System), `mine_manager` (Production), `safety_officer` (Safety & Rescue), `department_officer` (generic baseline — the other 12 departments), `field_inspector`, `contractor`, `regulator`.
+
+The backend should mirror `roleForDepartment()`/`permissionsForDepartment()` in `src/utils/departmentConfig.js` (or better: own this mapping server-side and simply return `role`/`permissions` on the user object, with the frontend's copy becoming a fallback only). Every authenticated user object the backend returns elsewhere (e.g. `assignedAuthority`, `actor` fields) should include `role` and `department` for consistency, since the frontend uses `department` — not just `role` — to decide what's shown and who gets admin-level access.
 
 All permission gating below is UI/UX only on the frontend — **the backend is the authority** and must independently enforce every rule, not trust client-sent role/department claims.
 
@@ -146,8 +151,7 @@ Two audiences share this resource: admin/governance roles browsing all contracto
 | GET | `/contractors` | `Contractor[]` | Corporate Admin, Mine Manager, Safety Officer, Regulator, `system` |
 | GET | `/contractors/:id` | `Contractor` | same, or the Contractor themself for their own `contractorId` |
 | GET | `/contractors/:id/projects` | `Project[]` | same |
-| GET | `/contractors/:id/reports` | `ContractorReport[]` | same |
-| POST | `/contractors/:id/reports` | `{ type, mineName, summary }` | Contractor (own org), `system` |
+| GET | `/contractors/:id/reports` | `ContractorReport[]` | same, or `GET /api/contractor/reports` scoped to the caller's own org |
 | GET | `/contractors/:id/attendance` | `Attendance[]` | same as projects |
 | POST | `/contractors/:id/attendance` | `{ date, workers, present, absent }` | Contractor (own org), `system` |
 | GET | `/contractors/:id/safety-requirements` | `SafetyRequirement[]` | same as projects |
@@ -157,6 +161,25 @@ Two audiences share this resource: admin/governance roles browsing all contracto
 | GET | `/contractors/:id/performance` | `{ safetyCompliance, taskCompletion, inspectionScore, documentation, overall }` | same as projects |
 
 `Contractor`: `{ id, name, primaryMineId, primaryMineName, workers, complianceRate, riskLevel, riskScore, openActions }`.
+
+### Contractor Reports (document upload + OCR)
+
+**Important separation**: a Contractor Report is *not* the same thing as a general Contractor Document (the `/contractors/:id/documents` endpoints above). A report always originates from an uploaded document — there is no free-text report editor — and goes through an OCR/extraction step; general documents are just stored. Keep these two concepts separate in any backend implementation too.
+
+| Method | Endpoint | Request Body | Response |
+|---|---|---|---|
+| POST | `/contractors/reports` | multipart: `{ reportType, projectId, projectName, reportDate, comment? }` + document file (PDF, JPG, JPEG, or PNG — **not PDF-only**) | `ContractorReport` with `processingStatus: "Uploaded"` (202) |
+| POST | `/contractors/reports/:id/process` | — | `ContractorReport` with `processingStatus: "OCR Completed"` and `extractedData` populated by the backend/ML OCR service |
+| PATCH | `/contractors/reports/:id` | `{ reportStatus: "Submitted" }` | `ContractorReport` — finalizes the report after the contractor reviews the extracted data |
+| GET | `/contractors/:id/reports` | — | `ContractorReport[]` — the contractor's report history |
+
+These match the conceptual contract suggested in the original brief (`POST /api/contractor/reports`, `POST /api/contractor/reports/:id/process`, `GET /api/contractor/reports/:id`, `GET /api/contractor/reports`) — adjust paths to whatever the backend team has already agreed if it differs; the frontend only needs the shapes below and the corresponding `contractorService.js` functions updated (`uploadReport`, `processReport`, `finalizeReport`, `getReports`).
+
+`ContractorReport`: `{ id, contractorId, reportType, projectId, projectName, reportDate, comment, document: { name, size, type }, processingStatus, reportStatus, submittedDate, extractedData }`.
+**Report Types**: Daily Report, Safety Report, Incident Report, Progress Report.
+**Processing Status** (technical pipeline state): Uploaded → Processing → OCR Completed.
+**Report Status** (workflow state): Draft, Under Review, Submitted, Approved, Rejected.
+**`extractedData`** (`{ contractor, project, reportDate, workProgress, safetyObservations, complianceIssues, correctiveActions }`) is **always server/ML-generated** — the frontend's mock version in `contractorService.js` is explicitly commented as a placeholder and must never be presented to a real user as actual AI output.
 
 ## Documents (Document Intelligence / OCR)
 
@@ -179,6 +202,16 @@ Two audiences share this resource: admin/governance roles browsing all contracto
 | PATCH | `/notifications/mark-all-read` | `{}` | `204` |
 
 `Notification`: `{ id, type, message, timestamp, read, priority }`. **Types**: HIGH RISK, OVERDUE, COMPLIANCE, FLAG, AI ALERT. **Priorities**: LOW, MEDIUM, HIGH.
+
+## Notices (Common Notice Board)
+
+One organization-wide board — **not** a separate board per department. Every department (and Contractor/Regulator) sees the same notices, filtered only by `visibility`.
+
+| Method | Endpoint | Response |
+|---|---|---|
+| GET | `/notices` | `Notice[]`, already filtered server-side by the caller's `visibility` |
+
+`Notice`: `{ id, title, description, category, priority, publishedDate, expiryDate, status, visibility }`. **Categories**: Compliance, Safety, Corporate, Policy, System, Reporting, General. **Priorities**: LOW, MEDIUM, HIGH. **Status**: Active, Expired. **`visibility`**: `"All Departments"` (default/current prototype) or an array of department keys for future department-scoped notices — the frontend's `noticeService.js` already supports both shapes.
 
 ## Audit Trail
 
@@ -220,17 +253,21 @@ The frontend queues items in IndexedDB (`src/utils/offlineStore.js`) and drains 
 
 ## Role & Department Permission Matrix
 
-This mirrors the UI-only gates in `src/utils/roles.js`, `src/utils/navigation.js`, and `src/utils/correctiveActionWorkflow.js` — the backend must enforce the real version of each row independently.
+This mirrors the UI-only gates in `src/utils/roles.js`, `src/utils/departmentConfig.js`, `src/utils/navigation.js`, and `src/utils/correctiveActionWorkflow.js` — the backend must enforce the real version of each row independently.
 
 | Capability | Permitted |
 |---|---|
+| Organization-wide visibility: all departments, compliance, inspections, violations, corrective actions, contractors, alerts, reports, audit logs, users/access | System Department only |
 | See true reporter identity on a confidential flag | Corporate Admin, Safety Officer, Regulator, or `department === system` |
-| Submit an official response to a flag | Corporate Admin, Mine Manager, Safety Officer, Regulator, or `department === system` |
+| Submit an official response to a flag | Corporate Admin, Mine Manager (Production), Safety Officer (Safety & Rescue), Regulator, or `department === system` |
 | Corrective action workflow transitions | Per the workflow table above |
-| View Mines / Compliance (mine-scoped) / Contractors / Risk Intelligence / Reports | Corporate Admin, Mine Manager, Safety Officer, Regulator, or `department === system` |
+| View Mines / Compliance (mine-scoped) / Contractors / Risk Intelligence / Reports | Corporate Admin, Mine Manager, Safety Officer, Regulator, or `department === system` — other departments get a generic `department_officer` baseline (see below) unless individually extended in `departmentConfig.js` |
 | View/Create Inspections | Corporate Admin, Mine Manager, Safety Officer, Field Inspector, Regulator, or `department === system` |
 | Field Reporting (`/field`) | Corporate Admin, Mine Manager, Safety Officer, Field Inspector, or `department === system` |
-| Contractor Portal (`/contractor/*`) | Contractor role only (own `contractorId`), or `department === system` for support/impersonation |
+| Contractor Portal (`/contractor/*`) | Contractor login only (own `contractorId`), or `department === system` for support/impersonation |
+| Common Notice Board (`/notices`) | All authenticated users, including Contractor and Regulator — one shared board, not scoped by department by default |
 | Everything else (Flags, Responses, Corrective Actions, Documents, AI Copilot, Notifications, Audit Trail, Settings) | All authenticated users |
+
+**Department → default role** (used to derive `role` from a department login): System → Corporate Admin; Production → Mine Manager; Safety & Rescue → Safety Officer; the remaining 12 departments (Material Management, ERP, Engineering & Equipment, Company Secretary, Clearing & Forwarding, Electronics & Telecommunication, HRD, Appeal & Grievance Cell, Corporate Planning, Project Monitoring, Contract Management, Welfare) → generic `department_officer` with the baseline permission set (view compliance, manage corrective actions in scope, view alerts, view the common notice board). Extend individual departments' permissions in `src/utils/departmentConfig.js` as real requirements arrive from the backend team — the architecture is `department → role → permissions`, not a hardcoded app per department.
 
 **System Department members get admin-level access on every row above, regardless of their `role` value.** This is the one override the backend must apply globally.

@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   TrendingUp,
   Radio,
+  Megaphone,
 } from 'lucide-react';
 import { ROLES } from './roles.js';
 
@@ -101,6 +102,7 @@ export const NAV_SECTIONS = [
   },
   {
     items: [
+      { label: 'Notice Board', path: '/notices', icon: Megaphone, roles: null },
       { label: 'Notifications', path: '/notifications', icon: Bell, roles: null },
       { label: 'Settings', path: '/settings', icon: Settings, roles: null },
     ],
@@ -126,6 +128,7 @@ export const CONTRACTOR_NAV_SECTIONS = [
   {
     items: [
       { label: 'AI Copilot', path: '/copilot', icon: Bot },
+      { label: 'Notice Board', path: '/notices', icon: Megaphone },
       { label: 'Notifications', path: '/notifications', icon: Bell },
       { label: 'Settings', path: '/settings', icon: Settings },
     ],

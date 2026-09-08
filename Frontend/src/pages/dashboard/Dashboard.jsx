@@ -12,12 +12,14 @@ import RecentResponsesList from '../../components/dashboard/RecentResponsesList.
 import OverdueActionsList from '../../components/dashboard/OverdueActionsList.jsx';
 import RecentAlertsList from '../../components/dashboard/RecentAlertsList.jsx';
 import RiskMapPreviewCard from '../../components/dashboard/RiskMapPreviewCard.jsx';
+import NoticeBoardPreviewCard from '../../components/dashboard/NoticeBoardPreviewCard.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { mineService } from '../../services/mineService.js';
 import { flagService } from '../../services/flagService.js';
 import { correctiveActionService } from '../../services/correctiveActionService.js';
 import { riskService } from '../../services/riskService.js';
 import { notificationService } from '../../services/notificationService.js';
+import { noticeService } from '../../services/noticeService.js';
 import { mockComplianceTrend, mockDashboardStats, mockResponses } from '../../data/mockData.js';
 
 export default function Dashboard() {
@@ -27,23 +29,24 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setState({ status: 'loading', data: null, error: null });
     try {
-      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts] = await Promise.all([
+      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices] = await Promise.all([
         mineService.getMines(),
         mineService.getHighRiskMines(),
         flagService.getRecentFlags(5),
         flagService.getFlagsByCategory(),
         correctiveActionService.getOverdueActions(),
         notificationService.getRecentAlerts(4),
+        noticeService.getNotices(user?.department),
       ]);
       setState({
         status: 'success',
-        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts },
+        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices },
         error: null,
       });
     } catch (err) {
       setState({ status: 'error', data: null, error: err.message || 'Something went wrong.' });
     }
-  }, []);
+  }, [user?.department]);
 
   useEffect(() => {
     load();
@@ -67,7 +70,7 @@ export default function Dashboard() {
     );
   }
 
-  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts } = state.data;
+  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices } = state.data;
   const stats = mockDashboardStats;
 
   return (
@@ -116,6 +119,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RecentAlertsList alerts={alerts} />
         <RiskMapPreviewCard mines={highRiskMines} />
+      </div>
+
+      <div className="mt-6">
+        <NoticeBoardPreviewCard notices={notices} />
       </div>
     </>
   );

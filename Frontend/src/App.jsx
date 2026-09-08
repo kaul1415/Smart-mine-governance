@@ -38,6 +38,7 @@ import AICopilot from './pages/copilot/AICopilot.jsx';
 import Reports from './pages/reports/Reports.jsx';
 import FieldReporting from './pages/field/FieldReporting.jsx';
 import Settings from './pages/settings/Settings.jsx';
+import NoticeBoard from './pages/notices/NoticeBoard.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 export default function App() {
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="/copilot" element={<AICopilot />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/field" element={<FieldReporting />} />
+        <Route path="/notices" element={<NoticeBoard />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
 
