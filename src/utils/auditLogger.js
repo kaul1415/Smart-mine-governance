@@ -1,0 +1,30 @@
+const prisma = require('../config/db');
+
+/**
+ * Creates an immutable audit trail entry
+ * @param {object} param0
+ * @param {string|null} param0.userId - ID of the user performing the action
+ * @param {string} param0.action - Action identifier (e.g. "INSPECTION_CREATED", "VIOLATION_ASSIGNED")
+ * @param {string} param0.entity - Entity name ("Mine", "Inspection", "Violation", "CorrectiveAction")
+ * @param {string|null} param0.entityId - Primary key ID of the entity
+ * @param {object|null} param0.metadata - Additional contextual JSON data
+ */
+const logAudit = async ({ userId = null, action, entity, entityId = null, metadata = null }) => {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        entity,
+        entityId,
+        metadata: metadata || {},
+      },
+    });
+  } catch (error) {
+    console.error(`⚠️ Audit log failure [${action} on ${entity}]:`, error.message);
+  }
+};
+
+module.exports = {
+  logAudit,
+};

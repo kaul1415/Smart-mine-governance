@@ -1,0 +1,38 @@
+const { z } = require('zod');
+
+const RoleEnum = z.enum([
+  'ADMIN',
+  'MINE_OFFICIAL',
+  'INSPECTOR',
+  'MANAGER',
+  'REGULATOR',
+]);
+
+const registerSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters long')
+    .max(100, 'Password is too long'),
+  name: z.string().min(2, 'Name must be at least 2 characters long'),
+  role: RoleEnum.optional().default('MINE_OFFICIAL'),
+  phone: z.string().optional(),
+  mineName: z.string().optional(),
+  designation: z.string().optional(),
+});
+
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+module.exports = {
+  RoleEnum,
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+};

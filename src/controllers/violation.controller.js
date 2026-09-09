@@ -1,0 +1,382 @@
+const prisma = require('../config/db');
+const {
+  createViolationSchema,
+  assignActionSchema,
+  submitMineResponseSchema,
+  updateActionStatusSchema,
+} = require('../validators/violation.validator');
+const { logAudit } = require('../utils/auditLogger');
+const { ZodError } = require('zod');
+
+/**
+ * List violations with filtering by mine, inspection, severity, category, or status
+ * GET /api/violations
+ */
+const getViolations = async (req, res) => {
+  try {
+    const { mineId, inspectionId, severity, status, category, page = '1', limit = '10' } = req.query;
+
+    const where = {};
+    if (inspectionId) where.inspectionId = inspectionId;
+    if (severity) where.severity = severity;
+    if (status) where.status = status;
+    if (category) where.category = category;
+    if (mineId) {
+      where.inspection = { mineId };
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, violations] = await Promise.all([
+      prisma.violation.count({ where }),
+      prisma.violation.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          inspection: {
+            select: {
+              id: true,
+              title: true,
+              reportUrl: true,
+              mine: { select: { id: true, name: true, code: true, subsidiary: true } },
+            },
+          },
+          reporter: {
+            select: { id: true, name: true, email: true, role: true },
+          },
+          actions: {
+            include: {
+              assignee: { select: { id: true, name: true, email: true, role: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+      data: violations,
+    });
+  } catch (error) {
+    console.error('getViolations error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch violations' });
+  }
+};
+
+/**
+ * Get violation by ID including notice PDF, inspection details, and mine responses
+ * GET /api/violations/:id
+ */
+const getViolationById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const violation = await prisma.violation.findUnique({
+      where: { id },
+      include: {
+        inspection: {
+          include: {
+            mine: true,
+            inspector: { select: { id: true, name: true, email: true } },
+          },
+        },
+        reporter: { select: { id: true, name: true, email: true, role: true } },
+        actions: {
+          include: {
+            assignee: { select: { id: true, name: true, email: true, phone: true } },
+          },
+        },
+      },
+    });
+
+    if (!violation) {
+      return res.status(404).json({ success: false, message: 'Violation not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: violation,
+    });
+  } catch (error) {
+    console.error('getViolationById error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch violation' });
+  }
+};
+
+/**
+ * Report a new violation under an inspection (Authority / Inspector)
+ * Supports attaching Notice PDF (noticePdfUrl) and Photo Evidence (imageUrl)
+ * POST /api/violations
+ */
+const createViolation = async (req, res) => {
+  try {
+    const validatedData = createViolationSchema.parse(req.body);
+
+    const inspection = await prisma.inspection.findUnique({
+      where: { id: validatedData.inspectionId },
+    });
+
+    if (!inspection) {
+      return res.status(404).json({ success: false, message: 'Referenced inspection not found' });
+    }
+
+    const violation = await prisma.violation.create({
+      data: {
+        inspectionId: validatedData.inspectionId,
+        reporterId: req.user.userId,
+        title: validatedData.title,
+        description: validatedData.description,
+        severity: validatedData.severity,
+        category: validatedData.category,
+        deadline: validatedData.deadline ? new Date(validatedData.deadline) : null,
+        noticePdfUrl: validatedData.noticePdfUrl,
+        imageUrl: validatedData.imageUrl,
+        status: 'REPORTED',
+      },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'VIOLATION_REPORTED',
+      entity: 'Violation',
+      entityId: violation.id,
+      metadata: {
+        inspectionId: violation.inspectionId,
+        severity: violation.severity,
+        category: violation.category,
+        noticePdfAttached: Boolean(violation.noticePdfUrl),
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Violation recorded with official documentation',
+      data: violation,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('createViolation error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to report violation' });
+  }
+};
+
+/**
+ * Assign a Corrective Action Plan to a Mine Official or Manager
+ * POST /api/violations/:id/actions
+ */
+const assignCorrectiveAction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const validatedData = assignActionSchema.parse(req.body);
+
+    const [violation, assignee] = await Promise.all([
+      prisma.violation.findUnique({ where: { id } }),
+      prisma.user.findUnique({ where: { id: validatedData.assigneeId } }),
+    ]);
+
+    if (!violation) {
+      return res.status(404).json({ success: false, message: 'Violation not found' });
+    }
+    if (!assignee) {
+      return res.status(404).json({ success: false, message: 'Assignee user not found' });
+    }
+
+    const [action] = await prisma.$transaction([
+      prisma.correctiveAction.create({
+        data: {
+          violationId: id,
+          assigneeId: validatedData.assigneeId,
+          actionPlan: validatedData.actionPlan,
+          status: 'PENDING',
+        },
+      }),
+      prisma.violation.update({
+        where: { id },
+        data: { status: 'ACTION_ASSIGNED' },
+      }),
+    ]);
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'CORRECTIVE_ACTION_ASSIGNED',
+      entity: 'CorrectiveAction',
+      entityId: action.id,
+      metadata: { violationId: id, assigneeId: assignee.id },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Corrective action plan assigned successfully',
+      data: action,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('assignCorrectiveAction error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to assign corrective action' });
+  }
+};
+
+/**
+ * Mine Official / Manager submits formal response (written + PDF report / evidence)
+ * POST /api/violations/actions/:actionId/response
+ */
+const submitMineResponse = async (req, res) => {
+  try {
+    const { actionId } = req.params;
+    const validatedData = submitMineResponseSchema.parse(req.body);
+
+    const action = await prisma.correctiveAction.findUnique({
+      where: { id: actionId },
+      include: { violation: true },
+    });
+
+    if (!action) {
+      return res.status(404).json({ success: false, message: 'Corrective action not found' });
+    }
+
+    const updatedAction = await prisma.correctiveAction.update({
+      where: { id: actionId },
+      data: {
+        responseText: validatedData.responseText || action.responseText,
+        responsePdfUrl: validatedData.responsePdfUrl || action.responsePdfUrl,
+        evidenceUrl: validatedData.evidenceUrl || action.evidenceUrl,
+        actionPlan: validatedData.actionPlan || action.actionPlan,
+        status: validatedData.status || 'RESOLVED',
+        resolvedAt: new Date(),
+      },
+    });
+
+    // Advance violation status to RECTIFIED
+    await prisma.violation.update({
+      where: { id: action.violationId },
+      data: { status: 'RECTIFIED' },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'MINE_RESPONSE_SUBMITTED',
+      entity: 'CorrectiveAction',
+      entityId: actionId,
+      metadata: {
+        hasWrittenResponse: Boolean(validatedData.responseText),
+        hasPdfResponse: Boolean(validatedData.responsePdfUrl),
+        hasEvidence: Boolean(validatedData.evidenceUrl),
+        violationId: action.violationId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mine response and compliance evidence submitted successfully',
+      data: updatedAction,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('submitMineResponse error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to submit mine response' });
+  }
+};
+
+/**
+ * Inspector / Authority reviews and verifies rectification or closes action
+ * PUT /api/violations/actions/:actionId
+ */
+const updateCorrectiveActionStatus = async (req, res) => {
+  try {
+    const { actionId } = req.params;
+    const validatedData = updateActionStatusSchema.parse(req.body);
+
+    const action = await prisma.correctiveAction.findUnique({
+      where: { id: actionId },
+      include: { violation: true },
+    });
+
+    if (!action) {
+      return res.status(404).json({ success: false, message: 'Corrective action not found' });
+    }
+
+    const isResolved = validatedData.status === 'RESOLVED';
+    const isVerified = validatedData.status === 'VERIFIED';
+
+    const updatedAction = await prisma.correctiveAction.update({
+      where: { id: actionId },
+      data: {
+        status: validatedData.status,
+        responseText: validatedData.responseText || action.responseText,
+        responsePdfUrl: validatedData.responsePdfUrl || action.responsePdfUrl,
+        evidenceUrl: validatedData.evidenceUrl || action.evidenceUrl,
+        resolvedAt: isResolved || isVerified ? new Date() : action.resolvedAt,
+      },
+    });
+
+    let newViolationStatus = action.violation.status;
+    if (isResolved) newViolationStatus = 'RECTIFIED';
+    if (isVerified) newViolationStatus = 'VERIFIED';
+
+    await prisma.violation.update({
+      where: { id: action.violationId },
+      data: { status: newViolationStatus },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'ACTION_STATUS_UPDATED',
+      entity: 'CorrectiveAction',
+      entityId: actionId,
+      metadata: { status: validatedData.status, violationStatus: newViolationStatus },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Action status updated to ${validatedData.status}`,
+      data: updatedAction,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('updateCorrectiveActionStatus error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update action status' });
+  }
+};
+
+module.exports = {
+  getViolations,
+  getViolationById,
+  createViolation,
+  assignCorrectiveAction,
+  submitMineResponse,
+  updateCorrectiveActionStatus,
+};

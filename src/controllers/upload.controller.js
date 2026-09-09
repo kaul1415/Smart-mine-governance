@@ -1,0 +1,53 @@
+const { logAudit } = require('../utils/auditLogger');
+
+/**
+ * Upload a PDF or evidence document
+ * POST /api/uploads
+ */
+const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded or file was rejected by filter',
+      });
+    }
+
+    const category = req.query.category || req.body.category || 'documents';
+    const relativeUrl = `/uploads/${category}/${req.file.filename}`;
+
+    await logAudit({
+      userId: req.user?.userId,
+      action: 'FILE_UPLOADED',
+      entity: 'Document',
+      entityId: req.file.filename,
+      metadata: {
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        sizeBytes: req.file.size,
+        category,
+        url: relativeUrl,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        originalName: req.file.originalname,
+        filename: req.file.filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        category,
+        url: relativeUrl,
+      },
+    });
+  } catch (error) {
+    console.error('uploadFile error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to process file upload' });
+  }
+};
+
+module.exports = {
+  uploadFile,
+};

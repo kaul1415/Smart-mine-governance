@@ -1,0 +1,54 @@
+# CoalGov Backend — Stages 1 & 2 Overview
+
+This document summarizes the changes, additions, and architecture implemented for **Stage 1 (Domain Data & Compliance)**, **Stage 2 (Inspections & Violation Workflow)**, and the **PDF Document & Dual-Response Subsystem**.
+
+---
+
+## 🚀 Key Modules & Capabilities
+
+### 1. 📄 Universal PDF & Document Upload Subsystem (`/api/uploads`)
+- **Multipart Form Uploads:** Powered by `multer` with file-type validation (`application/pdf`, images) and a 25MB cap.
+- **Categorized Storage:** Organized automatically under `/uploads/documents/`, `/uploads/reports/`, and `/uploads/responses/`.
+- **Static File Serving:** Uploaded PDFs are instantly accessible via `http://localhost:5000/uploads/...`.
+
+### 2. 🏛️ Dual Reporting & Response Workflow (Authority vs. Mine)
+- **Authority / Inspector Submission:**
+  - **Inspections:** Submit official inspection report PDF (`reportUrl`) alongside written notes (`notes`) and geo-coordinates.
+  - **Violations:** Attach official Show-Cause / Violation Notice PDF (`noticePdfUrl`) + description + photo evidence (`imageUrl`).
+- **Mine Official / Manager Response:**
+  - **Dual Response Option:** Mine can provide a **written explanation / defense (`responseText`)** AND/OR **upload a formal response PDF (`responsePdfUrl`)** + **rectification evidence (`evidenceUrl`)** via `POST /api/violations/actions/:actionId/response`.
+  - Automatically advances status from `ACTION_ASSIGNED` $\rightarrow$ `RECTIFIED` $\rightarrow$ `VERIFIED`.
+
+### 3. 🛡️ Statutory Compliance Tracking (`/api/compliances`)
+- Attach clearance certificates and statutory permission PDFs (`documentUrl`).
+- Categorized monitoring across `SAFETY`, `ENVIRONMENT`, `PRODUCTION`, `LABOUR`.
+- Summary metrics and compliance rate percentages (`GET /api/compliances/summary`).
+
+---
+
+## 📡 Complete API Endpoints Table
+
+| Category | Method | Endpoint | Access / Role Guard | Purpose |
+|---|---|---|---|---|
+| **File Uploads** | `POST` | `/api/uploads?category=reports\|responses\|documents` | Authenticated | Upload any PDF or evidence file |
+| **Mines** | `GET` | `/api/mines` | Authenticated | Search & list mines with pagination |
+| | `GET` | `/api/mines/:id` | Authenticated | Get mine details with compliances & stats |
+| | `POST` | `/api/mines` | `ADMIN`, `REGULATOR`, `MANAGER` | Register new coal mine |
+| | `PUT` | `/api/mines/:id` | `ADMIN`, `REGULATOR`, `MANAGER` | Update mine details |
+| | `DELETE` | `/api/mines/:id` | `ADMIN` | Delete mine record |
+| **Compliance** | `GET` | `/api/compliances` | Authenticated | List compliances (filter by mine/status) |
+| | `GET` | `/api/compliances/summary` | Authenticated | Aggregate compliance metrics |
+| | `POST` | `/api/compliances` | `ADMIN`, `REGULATOR`, `MANAGER`, `MINE_OFFICIAL` | Create compliance with clearance PDF |
+| | `PUT` | `/api/compliances/:id` | `ADMIN`, `REGULATOR`, `INSPECTOR`, `MANAGER` | Update compliance / certificate |
+| | `DELETE` | `/api/compliances/:id` | `ADMIN`, `REGULATOR` | Delete compliance record |
+| **Inspections** | `GET` | `/api/inspections` | Authenticated | List inspections |
+| | `GET` | `/api/inspections/:id` | Authenticated | Inspection report, violations & actions |
+| | `POST` | `/api/inspections` | `ADMIN`, `REGULATOR`, `INSPECTOR`, `MANAGER` | Schedule a new inspection |
+| | `PUT` | `/api/inspections/:id` | `ADMIN`, `REGULATOR`, `INSPECTOR` | Update inspection details |
+| | `POST` | `/api/inspections/:id/complete`| `ADMIN`, `INSPECTOR` | Submit inspection report PDF + geo-tag |
+| **Violations & Responses**| `GET` | `/api/violations` | Authenticated | List violations |
+| | `GET` | `/api/violations/:id` | Authenticated | View violation notice PDF & actions |
+| | `POST` | `/api/violations` | `ADMIN`, `INSPECTOR`, `REGULATOR` | Report violation + attach Notice PDF |
+| | `POST` | `/api/violations/:id/actions` | `ADMIN`, `INSPECTOR`, `MANAGER` | Assign corrective action plan |
+| | `POST` | `/api/violations/actions/:actionId/response` | `ADMIN`, `MANAGER`, `MINE_OFFICIAL` | **Submit Mine Response (Written + PDF)** |
+| | `PUT` | `/api/violations/actions/:actionId` | `ADMIN`, `MANAGER`, `MINE_OFFICIAL`, `INSPECTOR` | Verify & update action status |
