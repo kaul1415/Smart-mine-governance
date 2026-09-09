@@ -6,6 +6,49 @@ const {
 const { logAudit } = require('../utils/auditLogger');
 const { ZodError } = require('zod');
 
+const DEMO_COMPLIANCES = [
+  {
+    id: 'comp-001',
+    mineId: 'mine-001',
+    title: 'Environmental Clearance (EC) - MoEFCC 2026',
+    category: 'ENVIRONMENT',
+    status: 'COMPLIANT',
+    validUntil: '2028-12-31T00:00:00.000Z',
+    remarks: 'Approved for 20 MTPA production cap with dust suppression mandatory.',
+    mine: { id: 'mine-001', name: 'Rajmahal Opencast Mine', code: 'MINE-JH-ECL-001', subsidiary: 'ECL', state: 'Jharkhand' },
+  },
+  {
+    id: 'comp-002',
+    mineId: 'mine-001',
+    title: 'DGMS Deep-Hole Blasting Safety Permit',
+    category: 'SAFETY',
+    status: 'COMPLIANT',
+    validUntil: '2027-06-30T00:00:00.000Z',
+    remarks: 'Vibration monitoring sensors required at pit boundary.',
+    mine: { id: 'mine-001', name: 'Rajmahal Opencast Mine', code: 'MINE-JH-ECL-001', subsidiary: 'ECL', state: 'Jharkhand' },
+  },
+  {
+    id: 'comp-003',
+    mineId: 'mine-002',
+    title: 'Consent to Operate (CTO) Air & Water Act',
+    category: 'ENVIRONMENT',
+    status: 'UNDER_REVIEW',
+    validUntil: '2026-10-15T00:00:00.000Z',
+    remarks: 'Effluent treatment plant efficiency audit in progress.',
+    mine: { id: 'mine-002', name: 'Piparwar Opencast Project', code: 'MINE-JH-CCL-002', subsidiary: 'CCL', state: 'Jharkhand' },
+  },
+  {
+    id: 'comp-004',
+    mineId: 'mine-003',
+    title: 'Mines Creche & Welfare Compliance Certificate',
+    category: 'LABOUR',
+    status: 'COMPLIANT',
+    validUntil: '2027-03-31T00:00:00.000Z',
+    remarks: 'Mandatory worker healthcare checks completed.',
+    mine: { id: 'mine-003', name: 'Gevra Mega Opencast Mine', code: 'MINE-CG-SECL-003', subsidiary: 'SECL', state: 'Chhattisgarh' },
+  },
+];
+
 /**
  * List statutory compliances with optional filtering by mine, category, or status
  * GET /api/compliances
@@ -14,29 +57,45 @@ const getCompliances = async (req, res) => {
   try {
     const { mineId, category, status, page = '1', limit = '20' } = req.query;
 
-    const where = {};
-    if (mineId) where.mineId = mineId;
-    if (category) where.category = category;
-    if (status) where.status = status;
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
     const skip = (pageNum - 1) * limitNum;
 
-    const [total, compliances] = await Promise.all([
-      prisma.statutoryCompliance.count({ where }),
-      prisma.statutoryCompliance.findMany({
-        where,
-        skip,
-        take: limitNum,
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          mine: {
-            select: { id: true, name: true, code: true, subsidiary: true, state: true },
+    let total = 0;
+    let compliances = [];
+
+    try {
+      const where = {};
+      if (mineId) where.mineId = mineId;
+      if (category) where.category = category;
+      if (status) where.status = status;
+
+      [total, compliances] = await Promise.all([
+        prisma.statutoryCompliance.count({ where }),
+        prisma.statutoryCompliance.findMany({
+          where,
+          skip,
+          take: limitNum,
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            mine: {
+              select: { id: true, name: true, code: true, subsidiary: true, state: true },
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
+    } catch (dbErr) {
+      if (process.env.NODE_ENV !== 'production') {
+        let list = DEMO_COMPLIANCES;
+        if (mineId) list = list.filter((c) => c.mineId === mineId);
+        if (category) list = list.filter((c) => c.category === category);
+        if (status) list = list.filter((c) => c.status === status);
+        total = list.length;
+        compliances = list.slice(skip, skip + limitNum);
+      } else {
+        throw dbErr;
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -44,7 +103,7 @@ const getCompliances = async (req, res) => {
         total,
         page: pageNum,
         limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
+        totalPages: Math.ceil(total / limitNum) || 1,
       },
       data: compliances,
     });
@@ -61,15 +120,34 @@ const getCompliances = async (req, res) => {
 const getComplianceSummary = async (req, res) => {
   try {
     const { mineId } = req.query;
-    const where = mineId ? { mineId } : {};
+    let total = 0;
+    let compliant = 0;
+    let nonCompliant = 0;
+    let underReview = 0;
+    let expired = 0;
 
-    const [total, compliant, nonCompliant, underReview, expired] = await Promise.all([
-      prisma.statutoryCompliance.count({ where }),
-      prisma.statutoryCompliance.count({ where: { ...where, status: 'COMPLIANT' } }),
-      prisma.statutoryCompliance.count({ where: { ...where, status: 'NON_COMPLIANT' } }),
-      prisma.statutoryCompliance.count({ where: { ...where, status: 'UNDER_REVIEW' } }),
-      prisma.statutoryCompliance.count({ where: { ...where, status: 'EXPIRED' } }),
-    ]);
+    try {
+      const where = mineId ? { mineId } : {};
+
+      [total, compliant, nonCompliant, underReview, expired] = await Promise.all([
+        prisma.statutoryCompliance.count({ where }),
+        prisma.statutoryCompliance.count({ where: { ...where, status: 'COMPLIANT' } }),
+        prisma.statutoryCompliance.count({ where: { ...where, status: 'NON_COMPLIANT' } }),
+        prisma.statutoryCompliance.count({ where: { ...where, status: 'UNDER_REVIEW' } }),
+        prisma.statutoryCompliance.count({ where: { ...where, status: 'EXPIRED' } }),
+      ]);
+    } catch (dbErr) {
+      if (process.env.NODE_ENV !== 'production') {
+        const list = mineId ? DEMO_COMPLIANCES.filter((c) => c.mineId === mineId) : DEMO_COMPLIANCES;
+        total = list.length;
+        compliant = list.filter((c) => c.status === 'COMPLIANT').length;
+        nonCompliant = list.filter((c) => c.status === 'NON_COMPLIANT').length;
+        underReview = list.filter((c) => c.status === 'UNDER_REVIEW').length;
+        expired = list.filter((c) => c.status === 'EXPIRED').length;
+      } else {
+        throw dbErr;
+      }
+    }
 
     const complianceRate = total > 0 ? ((compliant / total) * 100).toFixed(1) : '100.0';
 

@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-surface-canvas text-ink-900 antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C3CBD6 transparent;
+}
+
+*:focus-visible {
+  outline: 2px solid #1B4965;
+  outline-offset: 2px;
+}
+
+/* Utility for horizontally-scrolling tables on small screens */
+.table-scroll {
+  @apply overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}

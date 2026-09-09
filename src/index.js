@@ -11,6 +11,7 @@ const complianceRoutes = require('./routes/compliance.routes');
 const inspectionRoutes = require('./routes/inspection.routes');
 const violationRoutes = require('./routes/violation.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const blockchainRoutes = require('./routes/blockchain.routes');
 
 const app = express();
 
@@ -53,8 +54,8 @@ app.get('/health', async (_req, res) => {
 app.get('/', (_req, res) => {
   res.status(200).json({
     name: 'CoalGov API',
-    version: '1.3.0',
-    description: 'Governance and compliance platform for Indian coal mining operations',
+    version: '1.4.0',
+    description: 'Governance and compliance platform for Indian coal mining operations with Blockchain Audit Trail',
     modules: [
       { path: '/api/auth', description: 'Authentication & Session Management' },
       { path: '/api/mines', description: 'Mine Site & Subsidiary Directory' },
@@ -62,6 +63,7 @@ app.get('/', (_req, res) => {
       { path: '/api/inspections', description: 'Geo-Tagged Field Inspections & Authority Reports' },
       { path: '/api/violations', description: 'Violations, Show-Cause Notices & Mine Response Lifecycle' },
       { path: '/api/uploads', description: 'PDF Documents & Evidence File Uploads' },
+      { path: '/api/blockchain', description: 'Immutable Cryptographic Blockchain Audit Trail & Integrity Verification' },
     ],
     staticUploads: '/uploads',
   });
@@ -73,9 +75,13 @@ app.get('/', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/mines', mineRoutes);
 app.use('/api/compliances', complianceRoutes);
+app.use('/api/compliance', complianceRoutes); // Alias for frontend complianceService
 app.use('/api/inspections', inspectionRoutes);
 app.use('/api/violations', violationRoutes);
+app.use('/api/flags', violationRoutes); // Alias for frontend flagService
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/blockchain', blockchainRoutes);
+app.use('/api/audit-logs', blockchainRoutes); // Alias for frontend auditService
 
 // ==========================================
 // 404 Handler
@@ -108,7 +114,7 @@ const PORT = parseInt(env.PORT, 10) || 5000;
 const server = app.listen(PORT, () => {
   console.log(`🚀 CoalGov Backend running on port ${PORT} [${env.NODE_ENV}]`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
-  console.log(`📑 API modules loaded: /auth, /mines, /compliances, /inspections, /violations, /uploads`);
+  console.log(`📑 API modules loaded: /auth, /mines, /compliances, /inspections, /violations, /uploads, /blockchain`);
   console.log(`📁 Static files hosted at: http://localhost:${PORT}/uploads`);
 });
 

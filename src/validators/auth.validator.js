@@ -22,8 +22,14 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().optional(),
+  username: z.string().optional(),
   password: z.string().min(1, 'Password is required'),
+  loginType: z.string().optional(),
+  department: z.string().optional(),
+}).refine((data) => data.email || data.username, {
+  message: 'Either email or username is required',
+  path: ['email'],
 });
 
 const refreshTokenSchema = z.object({
