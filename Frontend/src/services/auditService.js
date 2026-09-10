@@ -11,4 +11,17 @@ async function getAuditLogsForEntity(entityId) {
   return apiClient.get(`/audit-logs?entity=${entityId}`);
 }
 
-export const auditService = { getAuditLogs, getAuditLogsForEntity };
+async function verifyAuditChain() {
+  if (USE_MOCKS) {
+    return mockDelay({
+      verified: true,
+      totalRecords: mockAuditLogs.length,
+      tamperedCount: 0,
+      tamperedRecords: [],
+      algorithm: 'SHA-256 Merkle/Blockchain Linkage',
+    });
+  }
+  return apiClient.get('/audit-logs/verify');
+}
+
+export const auditService = { getAuditLogs, getAuditLogsForEntity, verifyAuditChain };

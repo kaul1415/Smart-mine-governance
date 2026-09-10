@@ -140,7 +140,7 @@ export default function ResponseDetails() {
             <EmptyState title="No activity recorded" />
           ) : (
             <Timeline
-              items={audit.map((a) => ({ id: a.id, timestamp: a.timestamp, actor: a.actor, actorType: a.actorType, action: a.action.toLowerCase() }))}
+              items={audit.map((a) => ({ id: a.id, timestamp: a.timestamp, actor: a.actor, actorType: a.actorType, action: a.action.toLowerCase(), hash: a.hash }))}
             />
           )}
         </Card>

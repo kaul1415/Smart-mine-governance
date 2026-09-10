@@ -314,15 +314,17 @@ model Notification {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  timestamp DateTime @default(now())
-  actor     String
-  actorType String   @default("user") // user | system
-  action    String
-  entity    String
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  timestamp    DateTime @default(now())
+  actor        String
+  actorType    String   @default("user") // user | system
+  action       String
+  entity       String
+  entityId     String?
+  metadata     Json?
+  hash         String?  // SHA-256 cryptographic hash of this record
+  previousHash String?  // SHA-256 hash of preceding audit record (blockchain link)
+  createdAt    DateTime @default(now())
 
   @@map("audit_logs")
 }

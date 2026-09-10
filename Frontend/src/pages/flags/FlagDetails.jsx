@@ -218,6 +218,7 @@ export default function FlagDetails() {
                   actorType: a.actorType,
                   action: a.action.toLowerCase(),
                   entity: a.entity !== flag.id ? a.entity : undefined,
+                  hash: a.hash,
                 }))}
               />
             )}

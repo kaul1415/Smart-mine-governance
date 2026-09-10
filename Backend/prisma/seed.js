@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { computeLogHash, GENESIS_HASH } = require('../src/services/auditLogger');
 
 const prisma = new PrismaClient();
 
@@ -329,20 +330,41 @@ async function seed() {
     });
   }
 
-  // 19. Seed Audit Logs
-  console.log(`Seeding ${mock.mockAuditLogs.length} audit logs...`);
-  for (const al of mock.mockAuditLogs) {
+  // 19. Seed Audit Logs with Cryptographic Hashes
+  console.log(`Seeding ${mock.mockAuditLogs.length} audit logs with cryptographic hash chain...`);
+  let chainHash = GENESIS_HASH;
+  const sortedMockLogs = [...mock.mockAuditLogs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  for (const al of sortedMockLogs) {
+    const logHash = computeLogHash({
+      id: al.id,
+      timestamp: al.timestamp,
+      actor: al.actor,
+      actorType: al.actorType,
+      action: al.action,
+      entity: al.entity,
+      entityId: al.entity,
+      previousHash: chainHash,
+      metadata: null,
+    });
+
     await prisma.auditLog.upsert({
       where: { id: al.id },
       update: {
         ...al,
+        entityId: al.entity,
+        hash: logHash,
+        previousHash: chainHash,
         timestamp: new Date(al.timestamp),
       },
       create: {
         ...al,
+        entityId: al.entity,
+        hash: logHash,
+        previousHash: chainHash,
         timestamp: new Date(al.timestamp),
       },
     });
+    chainHash = logHash;
   }
 
   // 20. Seed Risk Scores

@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { verifyAuditChain } = require('../services/auditLogger');
 
 const getAuditLogs = async (req, res) => {
   try {
@@ -26,6 +27,17 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+const verifyAuditLogs = async (req, res) => {
+  try {
+    const result = await verifyAuditChain();
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('verifyAuditLogs error:', error);
+    return res.status(500).json({ message: error.message || 'Error verifying audit chain' });
+  }
+};
+
 module.exports = {
   getAuditLogs,
+  verifyAuditLogs,
 };
