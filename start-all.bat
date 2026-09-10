@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
 
 :: 2. Start ML FastAPI Service (Port 8001)
 echo [2/4] Starting ML FastAPI Service on port 8001...
-start "CoalGov ML Service (Port 8001)" cmd /k "cd /d \"%ROOT_DIR%ML\" && call venv\Scripts\activate.bat && python -m uvicorn main:app --host 0.0.0.0 --port 8001"
+start "CoalGov ML Service (Port 8001)" cmd /k "cd /d \"%ROOT_DIR%ML\" && set HF_HUB_OFFLINE=1 && call venv\Scripts\activate.bat && python -m uvicorn main:app --host 0.0.0.0 --port 8001"
 
 :: Wait for ML Service to be ready
 timeout /t 2 /nobreak >nul

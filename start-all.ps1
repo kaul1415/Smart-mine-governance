@@ -35,7 +35,7 @@ try {
 Write-Host "[2/4] Starting ML FastAPI Service (Port 8001)..." -ForegroundColor Cyan
 $mlVenvPython = Join-Path $rootDir "ML\venv\Scripts\python.exe"
 if (Test-Path $mlVenvPython) {
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$rootDir\ML'; & '$mlVenvPython' -m uvicorn main:app --host 0.0.0.0 --port 8001" -WindowStyle Normal
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$env:HF_HUB_OFFLINE='1'; cd '$rootDir\ML'; & '$mlVenvPython' -m uvicorn main:app --host 0.0.0.0 --port 8001" -WindowStyle Normal
     Write-Host "      ✓ ML Service started in separate window (http://localhost:8001)" -ForegroundColor Green
 } else {
     Write-Host "      ❌ ML virtualenv not found at ML\venv. Run: python -m venv ML\venv && pip install -r ML\requirements.txt" -ForegroundColor Red
