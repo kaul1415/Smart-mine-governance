@@ -8,6 +8,7 @@ router.post('/chat', chatController.handleChatStream);
 // Session management
 router.get('/sessions', chatController.getSessions);
 router.post('/sessions', chatController.createSession);
+router.post('/sessions/clear', chatController.clearUserSessions);
 router.get('/sessions/:id/messages', chatController.getSessionMessages);
 router.delete('/sessions/:id', chatController.deleteSession);
 

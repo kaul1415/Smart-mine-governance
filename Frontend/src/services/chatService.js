@@ -1,6 +1,41 @@
 import { API_BASE_URL } from './api.js';
 
-let localConversations = [];
+// Local cache keyed by userId so users/roles never share client sessions in memory
+let localConversationsByUser = {};
+
+function getCurrentAuth() {
+  const token = localStorage.getItem('minegov_auth_token');
+  let userId = 'anonymous';
+  try {
+    const rawUser = localStorage.getItem('minegov_auth_user');
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      if (u && u.id) userId = String(u.id);
+    }
+  } catch (_) {}
+  return { token, userId };
+}
+
+function getAuthHeaders(extraHeaders = {}) {
+  const { token, userId } = getCurrentAuth();
+  return {
+    'Content-Type': 'application/json',
+    'X-User-Id': userId,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extraHeaders,
+  };
+}
+
+function getUserLocalConversations(userId) {
+  if (!localConversationsByUser[userId]) {
+    localConversationsByUser[userId] = [];
+  }
+  return localConversationsByUser[userId];
+}
+
+function setUserLocalConversations(userId, convs) {
+  localConversationsByUser[userId] = convs;
+}
 
 /**
  * Streams chat tokens from the backend using fetch and ReadableStream
@@ -14,17 +49,15 @@ export async function streamChatMessage({
   onError,
 }) {
   try {
-    const token = localStorage.getItem('minegov_auth_token');
+    const { userId } = getCurrentAuth();
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         sessionId,
         message,
         isPersistent,
+        userId,
       }),
     });
 
@@ -78,35 +111,43 @@ export async function streamChatMessage({
 }
 
 /**
- * Get chat sessions
+ * Get chat sessions for the current authenticated user
  */
 export async function getConversations() {
+  const { userId } = getCurrentAuth();
   try {
-    const res = await fetch(`${API_BASE_URL}/sessions`);
+    const res = await fetch(`${API_BASE_URL}/sessions`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.sessions) {
-        return data.sessions.map((s) => ({
+        const loaded = data.sessions.map((s) => ({
           id: s.id,
           title: s.title || 'Conversation',
           isPersistent: s.isPersistent,
           createdAt: s.createdAt,
           messages: s.messages || [],
         }));
+        setUserLocalConversations(userId, loaded);
+        return loaded;
       }
     }
   } catch (e) {
     console.warn('Backend sessions fetch failed, fallback to local:', e.message);
   }
-  return localConversations;
+  return getUserLocalConversations(userId);
 }
 
 /**
  * Get messages for a session
  */
 export async function getConversation(id) {
+  const { userId } = getCurrentAuth();
   try {
-    const res = await fetch(`${API_BASE_URL}/sessions/${id}/messages`);
+    const res = await fetch(`${API_BASE_URL}/sessions/${id}/messages`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       const data = await res.json();
       return {
@@ -117,13 +158,14 @@ export async function getConversation(id) {
   } catch (e) {
     console.warn('Session messages fetch failed:', e.message);
   }
-  return localConversations.find((c) => c.id === id) || null;
+  return getUserLocalConversations(userId).find((c) => c.id === id) || null;
 }
 
 /**
- * Create a new conversation session
+ * Create a new conversation session for current user
  */
 export async function createConversation(isPersistent = false, title = 'New Chat') {
+  const { userId } = getCurrentAuth();
   const newConv = {
     id: `session-${Date.now()}`,
     title,
@@ -135,23 +177,27 @@ export async function createConversation(isPersistent = false, title = 'New Chat
   try {
     const res = await fetch(`${API_BASE_URL}/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isPersistent, title }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ isPersistent, title, userId }),
     });
     if (res.ok) {
       const data = await res.json();
       if (data.session) {
-        return {
+        const sessionObj = {
           ...data.session,
           messages: [],
         };
+        const currentList = getUserLocalConversations(userId);
+        setUserLocalConversations(userId, [sessionObj, ...currentList.filter((c) => c.id !== sessionObj.id)]);
+        return sessionObj;
       }
     }
   } catch (e) {
     console.warn('Create session API failed, using client session:', e.message);
   }
 
-  localConversations = [newConv, ...localConversations];
+  const currentList = getUserLocalConversations(userId);
+  setUserLocalConversations(userId, [newConv, ...currentList]);
   return newConv;
 }
 
@@ -159,12 +205,17 @@ export async function createConversation(isPersistent = false, title = 'New Chat
  * Delete a session
  */
 export async function deleteConversation(id) {
+  const { userId } = getCurrentAuth();
   try {
-    await fetch(`${API_BASE_URL}/sessions/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE_URL}/sessions/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
   } catch (e) {
     console.warn('Delete session API failed:', e.message);
   }
-  localConversations = localConversations.filter((c) => c.id !== id);
+  const currentList = getUserLocalConversations(userId);
+  setUserLocalConversations(userId, currentList.filter((c) => c.id !== id));
   return true;
 }
 
@@ -172,19 +223,52 @@ export async function deleteConversation(id) {
  * Rename a session
  */
 export async function renameConversation(id, title) {
-  localConversations = localConversations.map((c) => (c.id === id ? { ...c, title } : c));
+  const { userId } = getCurrentAuth();
+  const currentList = getUserLocalConversations(userId);
+  setUserLocalConversations(
+    userId,
+    currentList.map((c) => (c.id === id ? { ...c, title } : c))
+  );
   return true;
+}
+
+/**
+ * Clears all local conversation state in memory
+ */
+export function clearLocalState() {
+  localConversationsByUser = {};
+}
+
+/**
+ * Clears user temporary chat sessions both locally and on backend server
+ */
+export async function wipeUserTemporaryChats() {
+  const { userId } = getCurrentAuth();
+  if (localConversationsByUser[userId]) {
+    localConversationsByUser[userId] = [];
+  }
+  try {
+    await fetch(`${API_BASE_URL}/sessions/clear`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+  } catch (_) {}
 }
 
 /**
  * Upload document for RAG indexing
  */
 export async function uploadDocument(file) {
+  const { token, userId } = getCurrentAuth();
   const formData = new FormData();
   formData.append('file', file);
 
   const res = await fetch(`${API_BASE_URL}/documents`, {
     method: 'POST',
+    headers: {
+      'X-User-Id': userId,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: formData,
   });
 
@@ -201,7 +285,9 @@ export async function uploadDocument(file) {
  */
 export async function getDocuments() {
   try {
-    const res = await fetch(`${API_BASE_URL}/documents`);
+    const res = await fetch(`${API_BASE_URL}/documents`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       const data = await res.json();
       return data.documents || [];
@@ -217,7 +303,9 @@ export async function getDocuments() {
  */
 export async function getDocumentChunks(documentId) {
   try {
-    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/chunks`);
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/chunks`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       return await res.json();
     }
@@ -234,6 +322,7 @@ export async function deleteDocument(documentId) {
   try {
     const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     return res.ok;
   } catch (e) {
@@ -249,6 +338,8 @@ export const chatService = {
   createConversation,
   deleteConversation,
   renameConversation,
+  clearLocalState,
+  wipeUserTemporaryChats,
   uploadDocument,
   getDocuments,
   getDocumentChunks,

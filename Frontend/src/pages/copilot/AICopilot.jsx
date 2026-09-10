@@ -24,8 +24,10 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import Button from '../../components/common/Button.jsx';
 import { chatService } from '../../services/chatService.js';
 import { CHAT_SUGGESTED_QUESTIONS } from '../../data/mockData.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function AICopilot() {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [loadingList, setLoadingList] = useState(true);
@@ -82,10 +84,12 @@ export default function AICopilot() {
   }
 
   useEffect(() => {
+    setActiveId(null);
+    setConversations([]);
     loadConversations();
     loadDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -325,6 +329,11 @@ export default function AICopilot() {
                 <span className="rounded bg-brand-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-brand-700">
                   gemma3:1b
                 </span>
+                {user?.role && (
+                  <span className="rounded bg-surface-sunken border border-border px-1.5 py-0.5 font-sans text-[10px] font-medium text-ink-700 uppercase">
+                    {user.role}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-ink-500">
                 Governance, DGMS statutory compliance, and RAG knowledge assistant

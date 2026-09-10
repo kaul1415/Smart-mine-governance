@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { authService } from '../services/authService.js';
+import { chatService } from '../services/chatService.js';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +13,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     function onStorage(e) {
       if (e.key === 'minegov_auth_user') {
+        chatService.clearLocalState();
         setUser(e.newValue ? JSON.parse(e.newValue) : null);
       }
     }
@@ -23,6 +25,7 @@ export function AuthProvider({ children }) {
     setIsAuthenticating(true);
     setAuthError(null);
     try {
+      chatService.clearLocalState();
       const session = await authService.login(credentials);
       authService.persistSession(session);
       setUser(session.user);
@@ -36,6 +39,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    chatService.wipeUserTemporaryChats();
     authService.clearSession();
     setUser(null);
   }

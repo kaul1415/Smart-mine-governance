@@ -1,12 +1,61 @@
 const { memoryStore } = require('../services/memoryStore');
 const prisma = require('../config/db');
+const { verifyAccessToken } = require('../utils/jwt');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:8001';
 
 /**
+ * Resolves the authenticated or client user identity from:
+ * 1. req.user (from auth middleware)
+ * 2. Authorization Bearer header (JWT token or mock-token-<userId>)
+ * 3. X-User-Id header
+ * 4. Request body userId
+ * 5. Fallback: 'anonymous'
+ */
+function resolveUser(req) {
+  if (req.user && req.user.userId) {
+    return { userId: String(req.user.userId), role: req.user.role || 'USER' };
+  }
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    if (token) {
+      if (token.startsWith('mock-token-')) {
+        const uid = token.replace('mock-token-', '').trim();
+        return { userId: uid, role: 'MOCK_USER' };
+      }
+      try {
+        const decoded = verifyAccessToken(token);
+        if (decoded && decoded.userId) {
+          return { userId: String(decoded.userId), role: decoded.role || 'USER' };
+        }
+      } catch (_) {}
+    }
+  }
+
+  if (req.headers['x-user-id']) {
+    return {
+      userId: String(req.headers['x-user-id']).trim(),
+      role: req.headers['x-user-role'] || 'USER',
+    };
+  }
+
+  if (req.body && req.body.userId) {
+    return { userId: String(req.body.userId).trim(), role: 'USER' };
+  }
+
+  if (req.query && req.query.userId) {
+    return { userId: String(req.query.userId).trim(), role: 'USER' };
+  }
+
+  return { userId: 'anonymous', role: 'ANONYMOUS' };
+}
+
+/**
  * Proxies streaming chat to ML service (Ollama gemma3:1b),
  * optionally retrieving context from RAG, and managing
- * persistent vs temporary memory.
+ * persistent vs temporary memory strictly isolated per user.
  */
 exports.handleChatStream = async (req, res) => {
   const { sessionId: rawSessionId, message, isPersistent = false, history = [] } = req.body;
@@ -15,22 +64,26 @@ exports.handleChatStream = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Message text is required' });
   }
 
+  const user = resolveUser(req);
+  const userId = user.userId;
   const sessionId = rawSessionId || `session-${Date.now()}`;
 
-  // 1. Prepare conversation history & persistence
+  // 1. Prepare conversation history & persistence (isolated to userId)
   let contextHistory = [];
   if (Array.isArray(history) && history.length > 0) {
     contextHistory = history;
   } else if (!isPersistent) {
-    const memSession = memoryStore.getSession(sessionId);
+    const memSession = memoryStore.getSession(sessionId, userId);
     if (memSession) {
       contextHistory = memSession.messages.map((m) => ({ role: m.role, content: m.content }));
     }
   } else {
-    // If persistent, try loading recent messages from DB
     try {
       const dbMessages = await prisma.message.findMany({
-        where: { sessionId },
+        where: {
+          sessionId,
+          session: { userId },
+        },
         orderBy: { createdAt: 'asc' },
         take: 10,
       });
@@ -38,8 +91,7 @@ exports.handleChatStream = async (req, res) => {
         contextHistory = dbMessages.map((m) => ({ role: m.role, content: m.content }));
       }
     } catch (dbErr) {
-      // If DB is not ready or fails, fallback to memory
-      const memSession = memoryStore.getSession(sessionId);
+      const memSession = memoryStore.getSession(sessionId, userId);
       if (memSession) {
         contextHistory = memSession.messages.map((m) => ({ role: m.role, content: m.content }));
       }
@@ -68,21 +120,20 @@ exports.handleChatStream = async (req, res) => {
       }
     }
   } catch (ragErr) {
-    // Non-fatal if RAG query fails
     console.warn('RAG query skipped or failed:', ragErr.message);
   }
 
   // Record user message
   if (!isPersistent) {
-    memoryStore.addMessage(sessionId, 'user', message);
+    memoryStore.addMessage(sessionId, 'user', message, userId);
   } else {
     try {
-      // Ensure session exists in DB
       await prisma.chatSession.upsert({
         where: { id: sessionId },
-        update: { updatedAt: new Date() },
+        update: { updatedAt: new Date(), userId },
         create: {
           id: sessionId,
+          userId,
           isPersistent: true,
           title: message.slice(0, 40) || 'New Chat',
         },
@@ -96,7 +147,7 @@ exports.handleChatStream = async (req, res) => {
       });
     } catch (dbErr) {
       console.warn('DB write failed for user message, using memory fallback:', dbErr.message);
-      memoryStore.addMessage(sessionId, 'user', message);
+      memoryStore.addMessage(sessionId, 'user', message, userId);
     }
   }
 
@@ -136,7 +187,6 @@ exports.handleChatStream = async (req, res) => {
       const chunkText = decoder.decode(value, { stream: true });
       res.write(chunkText);
 
-      // Parse tokens from SSE to store assistant reply
       const lines = chunkText.split('\n');
       for (const line of lines) {
         if (line.startsWith('data: ')) {
@@ -153,7 +203,7 @@ exports.handleChatStream = async (req, res) => {
     // 4. Record assistant message when stream concludes
     if (fullAssistantResponse) {
       if (!isPersistent) {
-        memoryStore.addMessage(sessionId, 'assistant', fullAssistantResponse);
+        memoryStore.addMessage(sessionId, 'assistant', fullAssistantResponse, userId);
       } else {
         try {
           await prisma.message.create({
@@ -165,7 +215,7 @@ exports.handleChatStream = async (req, res) => {
           });
         } catch (dbErr) {
           console.warn('DB write failed for assistant message, using memory fallback:', dbErr.message);
-          memoryStore.addMessage(sessionId, 'assistant', fullAssistantResponse);
+          memoryStore.addMessage(sessionId, 'assistant', fullAssistantResponse, userId);
         }
       }
     }
@@ -179,14 +229,20 @@ exports.handleChatStream = async (req, res) => {
 };
 
 /**
- * Get all sessions
+ * Get sessions belonging exclusively to the authenticated user
  */
 exports.getSessions = async (req, res) => {
   try {
+    const user = resolveUser(req);
+    const userId = user.userId;
+
     let dbSessions = [];
     try {
       dbSessions = await prisma.chatSession.findMany({
-        where: { isPersistent: true },
+        where: {
+          isPersistent: true,
+          userId,
+        },
         orderBy: { updatedAt: 'desc' },
         include: {
           messages: {
@@ -199,9 +255,10 @@ exports.getSessions = async (req, res) => {
       console.warn('DB session fetch fallback to memory:', dbErr.message);
     }
 
-    const memSessions = memoryStore.getAllSessions();
+    const memSessions = memoryStore.getSessionsForUser(userId);
     res.status(200).json({
       success: true,
+      userId,
       sessions: [...dbSessions, ...memSessions],
     });
   } catch (error) {
@@ -210,9 +267,11 @@ exports.getSessions = async (req, res) => {
 };
 
 /**
- * Create a new session
+ * Create a new session attached to the requesting user
  */
 exports.createSession = async (req, res) => {
+  const user = resolveUser(req);
+  const userId = user.userId;
   const { isPersistent = false, title = 'New Conversation' } = req.body;
   const sessionId = `session-${Date.now()}`;
 
@@ -222,6 +281,7 @@ exports.createSession = async (req, res) => {
         const session = await prisma.chatSession.create({
           data: {
             id: sessionId,
+            userId,
             isPersistent: true,
             title,
           },
@@ -232,7 +292,7 @@ exports.createSession = async (req, res) => {
       }
     }
 
-    const session = memoryStore.createSession(sessionId, title);
+    const session = memoryStore.createSession(sessionId, title, userId);
     res.status(201).json({ success: true, session });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -240,21 +300,22 @@ exports.createSession = async (req, res) => {
 };
 
 /**
- * Get messages for a session
+ * Get messages for a session only if owned by the requesting user
  */
 exports.getSessionMessages = async (req, res) => {
+  const user = resolveUser(req);
+  const userId = user.userId;
   const { id } = req.params;
+
   try {
-    // Check memory first
-    const memSession = memoryStore.getSession(id);
+    const memSession = memoryStore.getSession(id, userId);
     if (memSession) {
       return res.status(200).json({ success: true, messages: memSession.messages });
     }
 
-    // Check DB
     try {
-      const dbSession = await prisma.chatSession.findUnique({
-        where: { id },
+      const dbSession = await prisma.chatSession.findFirst({
+        where: { id, userId },
         include: { messages: { orderBy: { createdAt: 'asc' } } },
       });
       if (dbSession) {
@@ -264,23 +325,40 @@ exports.getSessionMessages = async (req, res) => {
       console.warn('DB fetch error for session messages:', dbErr.message);
     }
 
-    res.status(404).json({ success: false, message: 'Session not found' });
+    res.status(404).json({ success: false, message: 'Session not found or unauthorized' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 /**
- * Delete a session
+ * Delete a session belonging to the requesting user
  */
 exports.deleteSession = async (req, res) => {
+  const user = resolveUser(req);
+  const userId = user.userId;
   const { id } = req.params;
+
   try {
-    memoryStore.deleteSession(id);
+    memoryStore.deleteSession(id, userId);
     try {
-      await prisma.chatSession.delete({ where: { id } }).catch(() => {});
+      await prisma.chatSession.deleteMany({ where: { id, userId } }).catch(() => {});
     } catch (_) {}
     res.status(200).json({ success: true, message: 'Session deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Clear all temporary in-memory sessions for this user (called on logout)
+ */
+exports.clearUserSessions = async (req, res) => {
+  const user = resolveUser(req);
+  const userId = user.userId;
+  try {
+    memoryStore.clearUserSessions(userId);
+    res.status(200).json({ success: true, message: `Cleared temporary sessions for user ${userId}` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

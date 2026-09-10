@@ -17,6 +17,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import pypdf
 import io
+from pdf_processor import extract_fields_from_document, get_donut_pipeline
 
 from config import (
     DATABASE_URL,
@@ -117,6 +118,11 @@ def init_db_schema():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db_schema()
+    try:
+        logger.info("Initializing offline Donut visual document processor...")
+        get_donut_pipeline()
+    except Exception as e:
+        logger.warning(f"Donut model preloading deferred: {e}")
     yield
 
 app = FastAPI(title="CoalGov ML & AI Copilot Service", lifespan=lifespan)
@@ -580,6 +586,49 @@ async def rag_delete_document(document_id: str):
     sconn.close()
 
     return {"success": True, "document_id": document_id, "deleted_chunks": deleted_count}
+
+@app.post("/pdf/extract-fields")
+async def extract_pdf_fields(
+    file: UploadFile = File(...),
+    fields: str = Form(...),
+    page: int = Form(0),
+    use_cache: bool = Form(True),
+):
+    """
+    Extract structured fields from a PDF or document image using offline Donut DocVQA.
+    fields can be a JSON array (e.g. '["lease_id", "lessee_name"]') or comma-separated string.
+    """
+    try:
+        field_list = []
+        fields_str = fields.strip()
+        if fields_str.startswith("["):
+            try:
+                field_list = json.loads(fields_str)
+            except Exception:
+                field_list = [f.strip() for f in fields_str.strip("[]").split(",") if f.strip()]
+        else:
+            field_list = [f.strip() for f in fields_str.split(",") if f.strip()]
+
+        if not field_list:
+            raise HTTPException(status_code=400, detail="No valid field names provided in 'fields'")
+
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+        result = extract_fields_from_document(
+            file_bytes=content,
+            filename=file.filename or "document.pdf",
+            fields=field_list,
+            page_num=page,
+            use_cache=use_cache,
+        )
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in extract_pdf_fields: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

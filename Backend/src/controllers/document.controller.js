@@ -124,3 +124,45 @@ exports.deleteDocument = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Extract structured form fields from a PDF or document using offline Donut DocVQA
+ */
+exports.extractFields = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const { originalname, buffer, mimetype } = req.file;
+    const fields = req.body.fields || '[]';
+    const page = req.body.page || 0;
+    const useCache = req.body.use_cache !== 'false';
+
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: mimetype });
+    formData.append('file', blob, originalname);
+    formData.append('fields', typeof fields === 'object' ? JSON.stringify(fields) : fields);
+    formData.append('page', String(page));
+    formData.append('use_cache', String(useCache));
+
+    const mlResponse = await fetch(`${ML_SERVICE_URL}/pdf/extract-fields`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!mlResponse.ok) {
+      const errText = await mlResponse.text();
+      return res.status(mlResponse.status).json({
+        success: false,
+        message: `ML field extraction failed: ${errText}`,
+      });
+    }
+
+    const data = await mlResponse.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('Error in document extractFields controller:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -5,9 +5,10 @@ class MemoryStore {
     this.sessions = new Map();
   }
 
-  createSession(id = `temp-${Date.now()}`, title = 'Temporary Chat') {
+  createSession(id = `temp-${Date.now()}`, title = 'Temporary Chat', userId = 'anonymous') {
     const session = {
       id,
+      userId: String(userId || 'anonymous'),
       isPersistent: false,
       title,
       messages: [],
@@ -18,14 +19,21 @@ class MemoryStore {
     return session;
   }
 
-  getSession(id) {
-    return this.sessions.get(id) || null;
+  getSession(id, userId = null) {
+    const session = this.sessions.get(id);
+    if (!session) return null;
+    if (userId && session.userId && session.userId !== String(userId)) {
+      return null;
+    }
+    return session;
   }
 
-  addMessage(sessionId, role, content) {
+  addMessage(sessionId, role, content, userId = null) {
     let session = this.sessions.get(sessionId);
     if (!session) {
-      session = this.createSession(sessionId);
+      session = this.createSession(sessionId, 'Temporary Chat', userId || 'anonymous');
+    } else if (userId && (session.userId === 'anonymous' || !session.userId)) {
+      session.userId = String(userId);
     }
     const msg = {
       id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -39,8 +47,29 @@ class MemoryStore {
     return msg;
   }
 
-  deleteSession(id) {
+  deleteSession(id, userId = null) {
+    const session = this.sessions.get(id);
+    if (!session) return false;
+    if (userId && session.userId && session.userId !== String(userId)) {
+      return false;
+    }
     return this.sessions.delete(id);
+  }
+
+  getSessionsForUser(userId) {
+    if (!userId) return [];
+    const uid = String(userId);
+    return Array.from(this.sessions.values()).filter((s) => s.userId === uid);
+  }
+
+  clearUserSessions(userId) {
+    if (!userId) return;
+    const uid = String(userId);
+    for (const [id, s] of this.sessions.entries()) {
+      if (s.userId === uid) {
+        this.sessions.delete(id);
+      }
+    }
   }
 
   getAllSessions() {
@@ -50,3 +79,4 @@ class MemoryStore {
 
 const memoryStore = new MemoryStore();
 module.exports = { memoryStore };
+
