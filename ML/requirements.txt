@@ -16,6 +16,7 @@ python-multipart>=0.0.9
 
 # Document Parsing & Data
 pypdf>=4.2.0
+pytesseract>=0.3.10
 numpy>=1.26.0
 python-dotenv>=1.0.1
 

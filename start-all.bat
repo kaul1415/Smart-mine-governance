@@ -1,5 +1,5 @@
 @echo off
-title CoalGov - Start All Services (Offline AI & App)
+title CoalGov - Launcher
 color 0A
 
 echo =====================================================================
@@ -8,54 +8,60 @@ echo               (Offline Local LLM + RAG + Copilot)
 echo =====================================================================
 echo.
 
-set ROOT_DIR=%~dp0
-cd /d "%ROOT_DIR%"
+:: Store root path (no trailing slash)
+set "ROOT=%~dp0"
+set "ROOT=%ROOT:~0,-1%"
 
-:: 1. Check / Start Ollama
-echo [1/4] Checking Ollama service (Local LLM)...
+:: 1. Ollama
+echo [1/4] Checking Ollama (Local LLM)...
 curl -s http://127.0.0.1:11434/api/tags >nul 2>&1
-if %errorlevel% neq 0 (
-    echo     Ollama is not running. Starting Ollama in background...
-    start "Ollama Server" /min ollama serve
-    timeout /t 3 /nobreak >nul
+if errorlevel 1 (
+    echo       Ollama not running - starting it...
+    start "Ollama Server" /min cmd /c "ollama serve"
 ) else (
-    echo     Ollama is running and ready.
+    echo       Ollama already running.
 )
 
-:: 2. Start ML FastAPI Service (Port 8001)
-echo [2/4] Starting ML FastAPI Service on port 8001...
-start "CoalGov ML Service (Port 8001)" cmd /k "cd /d \"%ROOT_DIR%ML\" && set HF_HUB_OFFLINE=1 && call venv\Scripts\activate.bat && python -m uvicorn main:app --host 0.0.0.0 --port 8001"
+:: 2. ML Service
+echo [2/4] Starting ML Service on port 8001...
+netstat -ano | findstr /r /c:":8001 .*LISTENING" >nul
+if errorlevel 1 (
+    start "CoalGov - ML Service :8001" cmd /k "cd /d ""%ROOT%\ML"" && set HF_HUB_OFFLINE=1 && call venv\Scripts\activate.bat && python -m uvicorn main:app --host 0.0.0.0 --port 8001"
+) else (
+    echo       ML Service is already running.
+)
 
-:: Wait for ML Service to be ready
-timeout /t 2 /nobreak >nul
+:: 3. Node.js Backend
+echo [3/4] Starting Backend on port 5000...
+netstat -ano | findstr /r /c:":5000 .*LISTENING" >nul
+if errorlevel 1 (
+    start "CoalGov - Backend :5000" cmd /k "cd /d ""%ROOT%\Backend"" && node src\index.js"
+) else (
+    echo       Backend is already running.
+)
 
-:: 3. Start Node.js Backend (Port 5000)
-echo [3/4] Starting Node.js Backend on port 5000...
-start "CoalGov Backend (Port 5000)" cmd /k "cd /d \"%ROOT_DIR%Backend\" && node src/index.js"
-
-:: Wait for Backend
-timeout /t 2 /nobreak >nul
-
-:: 4. Start React Vite Frontend (Port 5173)
-echo [4/4] Starting React Frontend on port 5173...
-start "CoalGov Frontend (Port 5173)" cmd /k "cd /d \"%ROOT_DIR%Frontend\" && npm run dev"
-
-:: Wait for Frontend to initialize then open browser
-timeout /t 4 /nobreak >nul
+:: 4. React Frontend (Vite)
+echo [4/4] Starting Frontend on port 5173...
+netstat -ano | findstr /r /c:":5173 .*LISTENING" >nul
+if errorlevel 1 (
+    start "CoalGov - Frontend :5173" cmd /k "cd /d ""%ROOT%\Frontend"" && node node_modules\vite\bin\vite.js"
+) else (
+    echo       Frontend is already running.
+)
 
 echo.
 echo =====================================================================
-echo  All services started successfully!
+echo  All services launched!
 echo.
-echo  - Frontend:   http://localhost:5173
-echo  - AI Copilot: http://localhost:5173/copilot
-echo  - Backend:    http://localhost:5000
-echo  - ML Service: http://localhost:8001 (Docs: http://localhost:8001/docs)
-echo  - Ollama:     http://localhost:11434 (gemma3:1b, nomic-embed-text)
+echo   Frontend  -^>  http://localhost:5173
+echo   Copilot   -^>  http://localhost:5173/copilot
+echo   Backend   -^>  http://localhost:5000
+echo   ML / RAG  -^>  http://localhost:8001/docs
+echo   Ollama    -^>  http://localhost:11434
 echo.
-echo  Opening browser to AI Copilot...
-echo  (To stop all services, run stop-all.bat)
+echo   To stop all services, run:  stop-all.bat
 echo =====================================================================
+echo.
 
-start http://localhost:5173/copilot
+start "" http://localhost:5173/copilot
 exit /b 0

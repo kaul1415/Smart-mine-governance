@@ -653,7 +653,7 @@ export default function AICopilot() {
         )}
 
         {/* Message Stream Display Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           {loadingList ? (
             <LoadingState label="Loading chats…" />
           ) : !active || (active.messages || []).length === 0 ? (
@@ -684,7 +684,7 @@ export default function AICopilot() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="mx-auto max-w-5xl space-y-5">
               {active.messages.map((m) => (
                 <ChatMessage key={m.id} message={m} />
               ))}
@@ -703,7 +703,7 @@ export default function AICopilot() {
             e.preventDefault();
             handleSend();
           }}
-          className="flex items-center gap-2 border-t border-border bg-surface-card p-4 shadow-sm"
+          className="mx-auto flex w-full max-w-5xl items-center gap-2 border-t border-border bg-surface-card p-4 shadow-sm"
         >
           <input
             value={input}

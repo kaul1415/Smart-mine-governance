@@ -23,6 +23,7 @@ except ImportError:
     HAS_PSYCOPG2 = False
 import pypdf
 import io
+import pymupdf
 from pdf_processor import extract_fields_from_document, get_donut_pipeline
 
 from config import (
@@ -32,6 +33,7 @@ from config import (
     OLLAMA_CHAT_MODEL,
     OLLAMA_EMBED_MODEL,
     PORT,
+    TESSERACT_CMD,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -158,6 +160,63 @@ class RagQueryRequest(BaseModel):
     query: str
     top_k: Optional[int] = 4
 
+
+def get_ocr_engine():
+    """Load the optional local OCR engine and use the Windows default when present."""
+    import pytesseract
+    if os.path.isfile(TESSERACT_CMD):
+        pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    return pytesseract
+
+
+def extract_document_text(content_bytes: bytes, filename: str) -> tuple[str, str, int]:
+    """Extract PDF text and OCR only pages that do not have a text layer."""
+    if not filename.lower().endswith(".pdf"):
+        if filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff")):
+            try:
+                pytesseract = get_ocr_engine()
+                from PIL import Image
+                image = Image.open(io.BytesIO(content_bytes)).convert("RGB")
+                text = pytesseract.image_to_string(image).strip()
+                if not text:
+                    raise HTTPException(status_code=422, detail="OCR could not find readable text in this image.")
+                return text, "ocr", 1
+            except ImportError:
+                raise HTTPException(status_code=503, detail="Image OCR requires Tesseract OCR. Install it and restart the ML service.")
+        try:
+            return content_bytes.decode("utf-8"), "text", 0
+        except UnicodeDecodeError:
+            return content_bytes.decode("latin-1", errors="ignore"), "text", 0
+
+    try:
+        reader = pypdf.PdfReader(io.BytesIO(content_bytes))
+        page_text = [page.extract_text() or "" for page in reader.pages]
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to read PDF: {exc}")
+
+    ocr_pages = 0
+    try:
+        pytesseract = get_ocr_engine()
+        document = pymupdf.open(stream=content_bytes, filetype="pdf")
+        for index, extracted in enumerate(page_text):
+            if extracted.strip():
+                continue
+            pixmap = document[index].get_pixmap(dpi=220, colorspace=pymupdf.csGRAY)
+            from PIL import Image
+            image = Image.frombytes("L", (pixmap.width, pixmap.height), pixmap.samples)
+            page_text[index] = pytesseract.image_to_string(image)
+            ocr_pages += 1
+        document.close()
+    except ImportError:
+        logger.warning("pytesseract is not installed; scanned PDF pages cannot be OCR'd.")
+    except Exception as exc:
+        logger.warning(f"OCR skipped: {exc}")
+
+    text = "\n".join(page_text).strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="No readable text found. For scanned PDFs, install Tesseract OCR and restart the ML service.")
+    return text, "ocr" if ocr_pages else "text", ocr_pages
+
 # Helper: embed text using Ollama
 async def embed_text(text: str) -> List[float]:
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -237,7 +296,8 @@ async def chat_stream(req: ChatStreamRequest):
     system_text = req.systemPrompt or (
         "You are CoalGov AI Copilot, an expert assistant for Indian coal mining governance, "
         "safety compliance (DGMS regulations, Mines Act 1952), contractor management, and environmental monitoring. "
-        "Provide direct, clear, and actionable answers. If context documents are provided, prioritize information from them."
+        "Provide direct, clear, and actionable answers. Use short Markdown headings and bullet points, never an unbroken wall of text. "
+        "Keep answers under 450 words unless the user explicitly asks for detail. If context documents are provided, prioritize them."
     )
     messages.append({"role": "system", "content": system_text})
     
@@ -254,6 +314,8 @@ async def chat_stream(req: ChatStreamRequest):
             "model": OLLAMA_CHAT_MODEL,
             "messages": messages,
             "stream": True,
+            "keep_alive": "20m",
+            "options": {"num_predict": 450, "temperature": 0.25},
         }
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
@@ -306,18 +368,7 @@ async def rag_ingest(
     if file:
         doc_name = file.filename
         content_bytes = await file.read()
-        if doc_name.lower().endswith(".pdf"):
-            try:
-                reader = pypdf.PdfReader(io.BytesIO(content_bytes))
-                pages_text = [page.extract_text() or "" for page in reader.pages]
-                doc_text = "\n".join(pages_text)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to extract text from PDF: {str(e)}")
-        else:
-            try:
-                doc_text = content_bytes.decode("utf-8")
-            except Exception:
-                doc_text = content_bytes.decode("latin-1", errors="ignore")
+        doc_text, extraction_method, ocr_pages = extract_document_text(content_bytes, doc_name)
     elif text:
         doc_text = text
     else:
@@ -386,7 +437,18 @@ async def rag_ingest(
         "document_id": doc_id,
         "filename": doc_name,
         "chunks_count": ingested_count,
+        "extraction_method": extraction_method if file else "text",
+        "ocr_pages": ocr_pages if file else 0,
     }
+
+@app.post("/pdf/extract-text")
+async def extract_pdf_text(file: UploadFile = File(...)):
+    """Extract the readable text from an evidence upload, with OCR fallback."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    text, extraction_method, ocr_pages = extract_document_text(content, file.filename or "document.pdf")
+    return {"success": True, "filename": file.filename, "text": text, "extraction_method": extraction_method, "ocr_pages": ocr_pages}
 
 @app.post("/rag/query")
 async def rag_query(req: RagQueryRequest):
