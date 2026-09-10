@@ -10,7 +10,7 @@
 // via env) switches every service to real HTTP calls through
 // apiClient without touching a single page component.
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 // Toggle for the whole app. In a later phase this can move to an
 // env var (VITE_USE_MOCKS) once the backend contract is stable.
