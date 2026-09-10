@@ -75,3 +75,52 @@ exports.getDocuments = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Get all chunks and text content for a specific document
+ */
+exports.getDocumentChunks = async (req, res) => {
+  const { documentId } = req.params;
+  try {
+    const mlRes = await fetch(`${ML_SERVICE_URL}/rag/documents/${documentId}/chunks`);
+    if (mlRes.ok) {
+      const data = await mlRes.json();
+      return res.status(200).json({ success: true, ...data });
+    }
+
+    // Try DB query if ML direct fetch failed
+    const chunks = await prisma.$queryRaw`
+      SELECT id, document_id, filename, content, created_at
+      FROM document_chunks
+      WHERE document_id = ${documentId}
+      ORDER BY id ASC;
+    `.catch(() => []);
+
+    if (chunks.length > 0) {
+      return res.status(200).json({
+        success: true,
+        document_id: documentId,
+        filename: chunks[0].filename,
+        chunks,
+      });
+    }
+
+    res.status(404).json({ success: false, message: 'Document not found' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Delete a document from RAG knowledge store
+ */
+exports.deleteDocument = async (req, res) => {
+  const { documentId } = req.params;
+  try {
+    await fetch(`${ML_SERVICE_URL}/rag/documents/${documentId}`, { method: 'DELETE' }).catch(() => {});
+    await prisma.$executeRaw`DELETE FROM document_chunks WHERE document_id = ${documentId};`.catch(() => {});
+    res.status(200).json({ success: true, message: 'Document deleted from RAG knowledge store' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

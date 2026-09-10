@@ -13,6 +13,10 @@ import {
   RefreshCw,
   Trash2,
   Server,
+  Eye,
+  Copy,
+  Check,
+  Search,
 } from 'lucide-react';
 import ChatSidebar from '../../components/copilot/ChatSidebar.jsx';
 import ChatMessage from '../../components/copilot/ChatMessage.jsx';
@@ -42,6 +46,13 @@ export default function AICopilot() {
 
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Document Viewer state
+  const [inspectingDoc, setInspectingDoc] = useState(null);
+  const [loadingDocChunks, setLoadingDocChunks] = useState(false);
+  const [chunkSearch, setChunkSearch] = useState('');
+  const [viewMode, setViewMode] = useState('chunks'); // 'chunks' | 'fulltext'
+  const [docCopied, setDocCopied] = useState(false);
 
   async function loadConversations(selectId) {
     setLoadingList(true);
@@ -245,6 +256,42 @@ export default function AICopilot() {
     }
   }
 
+  async function handleInspectDocument(doc) {
+    setLoadingDocChunks(true);
+    setInspectingDoc({ document_id: doc.document_id, filename: doc.filename, chunks: [] });
+    setChunkSearch('');
+    setDocCopied(false);
+    try {
+      const data = await chatService.getDocumentChunks(doc.document_id);
+      if (data && data.chunks) {
+        setInspectingDoc(data);
+      }
+    } catch (e) {
+      console.warn('Failed to load document chunks:', e);
+    } finally {
+      setLoadingDocChunks(false);
+    }
+  }
+
+  async function handleDeleteDocument(documentId, e) {
+    if (e) e.stopPropagation();
+    const ok = window.confirm('Are you sure you want to remove this document from the RAG knowledge base?');
+    if (!ok) return;
+    await chatService.deleteDocument(documentId);
+    if (inspectingDoc && inspectingDoc.document_id === documentId) {
+      setInspectingDoc(null);
+    }
+    await loadDocuments();
+  }
+
+  function handleCopyFullText() {
+    if (!inspectingDoc || !inspectingDoc.chunks) return;
+    const fullText = inspectingDoc.chunks.map((c) => c.content).join('\n\n');
+    navigator.clipboard?.writeText(fullText);
+    setDocCopied(true);
+    setTimeout(() => setDocCopied(false), 2000);
+  }
+
   return (
     <div className="-m-4 flex h-[calc(100vh-4rem)] sm:-m-6 lg:-m-8">
       <ChatSidebar
@@ -413,30 +460,184 @@ export default function AICopilot() {
 
                 {/* Document List */}
                 <div className="rounded-md border border-border bg-surface-card p-3">
-                  <span className="mb-2 block text-[11px] font-semibold text-ink-700">
-                    Indexed Documents in Database:
-                  </span>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-ink-700">
+                      Your Indexed Documents ({indexedDocs.length}):
+                    </span>
+                    <span className="text-[10px] text-ink-500">Click to view content</span>
+                  </div>
                   {indexedDocs.length === 0 ? (
-                    <p className="text-xs text-ink-500">No documents indexed yet. Upload one above!</p>
+                    <p className="text-xs text-ink-500 py-3 text-center">No documents indexed yet. Upload one above!</p>
                   ) : (
-                    <div className="max-h-28 space-y-1.5 overflow-y-auto">
+                    <div className="max-h-36 space-y-1.5 overflow-y-auto">
                       {indexedDocs.map((doc, i) => (
                         <div
                           key={doc.document_id || i}
-                          className="flex items-center justify-between rounded bg-surface-sunken px-2 py-1 text-xs text-ink-900"
+                          onClick={() => handleInspectDocument(doc)}
+                          className="group flex items-center justify-between rounded bg-surface-sunken px-2.5 py-1.5 text-xs text-ink-900 transition-colors hover:bg-brand-100/60 cursor-pointer"
                         >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <FileText size={12} className="text-brand-600" />
-                            <span className="truncate">{doc.filename}</span>
+                          <div className="flex items-center gap-2 truncate">
+                            <FileText size={13} className="text-brand-600 shrink-0" />
+                            <span className="truncate font-medium">{doc.filename}</span>
                           </div>
-                          <span className="text-[10px] text-ink-500">
-                            {doc.chunks} chunks
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-ink-500 font-mono">
+                              {doc.chunks} {doc.chunks === 1 ? 'chunk' : 'chunks'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInspectDocument(doc);
+                              }}
+                              className="rounded p-1 text-ink-500 hover:text-brand-800 hover:bg-white transition-colors"
+                              title="Inspect document text and chunks"
+                            >
+                              <Eye size={12} />
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteDocument(doc.document_id, e)}
+                              className="rounded p-1 text-ink-500 hover:text-status-danger hover:bg-white transition-colors"
+                              title="Delete from RAG store"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Document Content / Chunk Inspector Modal */}
+        {inspectingDoc && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4 backdrop-blur-xs">
+            <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-surface-card shadow-2xl">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+                <div className="flex items-center gap-2.5 truncate">
+                  <div className="flex h-8 w-8 items-center justify-center rounded bg-brand-100 text-brand-800 shrink-0">
+                    <FileText size={16} />
+                  </div>
+                  <div className="truncate">
+                    <h3 className="text-sm font-bold text-ink-900 truncate">
+                      {inspectingDoc.filename}
+                    </h3>
+                    <p className="text-[11px] text-ink-500">
+                      {inspectingDoc.chunks?.length || 0} chunks indexed in RAG knowledge store
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleCopyFullText}
+                    className="flex items-center gap-1 rounded border border-border bg-surface-card px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-surface-sunken"
+                    title="Copy full document text"
+                  >
+                    {docCopied ? <Check size={12} className="text-status-success" /> : <Copy size={12} />}
+                    <span>{docCopied ? 'Copied' : 'Copy Text'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDocument(inspectingDoc.document_id)}
+                    className="flex items-center gap-1 rounded border border-status-danger/30 bg-status-dangerBg/50 px-2.5 py-1 text-xs font-medium text-status-danger hover:bg-status-dangerBg"
+                    title="Delete document"
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete</span>
+                  </button>
+                  <button
+                    onClick={() => setInspectingDoc(null)}
+                    className="rounded p-1 text-ink-500 hover:bg-surface-sunken"
+                    aria-label="Close viewer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & View Mode Toggle */}
+              <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunken px-5 py-2">
+                <div className="relative flex-1">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-500" />
+                  <input
+                    value={chunkSearch}
+                    onChange={(e) => setChunkSearch(e.target.value)}
+                    placeholder="Search inside this document..."
+                    className="w-full rounded border border-border bg-white pl-8 pr-3 py-1 text-xs text-ink-900 focus:border-brand-600 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center rounded border border-border bg-white p-0.5 text-xs">
+                  <button
+                    onClick={() => setViewMode('chunks')}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      viewMode === 'chunks'
+                        ? 'bg-brand-800 text-white'
+                        : 'text-ink-700 hover:bg-surface-sunken'
+                    }`}
+                  >
+                    Chunks ({inspectingDoc.chunks?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setViewMode('fulltext')}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      viewMode === 'fulltext'
+                        ? 'bg-brand-800 text-white'
+                        : 'text-ink-700 hover:bg-surface-sunken'
+                    }`}
+                  >
+                    Full Text
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content Body */}
+              <div className="flex-1 overflow-y-auto p-5">
+                {loadingDocChunks ? (
+                  <LoadingState label="Loading document chunks..." />
+                ) : viewMode === 'chunks' ? (
+                  <div className="space-y-3">
+                    {(inspectingDoc.chunks || [])
+                      .filter(
+                        (c) =>
+                          !chunkSearch ||
+                          c.content.toLowerCase().includes(chunkSearch.toLowerCase())
+                      )
+                      .map((chunk, idx) => (
+                        <div
+                          key={chunk.id || idx}
+                          className="rounded-md border border-border bg-surface-card p-3 shadow-xs"
+                        >
+                          <div className="mb-1.5 flex items-center justify-between text-[11px] text-ink-500">
+                            <span className="font-mono font-semibold text-brand-700">
+                              Chunk #{idx + 1}
+                            </span>
+                            <span>{chunk.content.length} characters</span>
+                          </div>
+                          <p className="text-xs leading-relaxed text-ink-900 whitespace-pre-wrap">
+                            {chunk.content}
+                          </p>
+                        </div>
+                      ))}
+                    {(inspectingDoc.chunks || []).filter(
+                      (c) =>
+                        !chunkSearch ||
+                        c.content.toLowerCase().includes(chunkSearch.toLowerCase())
+                    ).length === 0 && (
+                      <p className="py-8 text-center text-xs text-ink-500">
+                        No matching chunks found for "{chunkSearch}".
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-border bg-surface-card p-4">
+                    <p className="text-xs leading-relaxed text-ink-900 whitespace-pre-wrap font-mono">
+                      {(inspectingDoc.chunks || []).map((c) => c.content).join('\n\n')}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

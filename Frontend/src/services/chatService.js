@@ -212,6 +212,36 @@ export async function getDocuments() {
   return [];
 }
 
+/**
+ * Get all content chunks for a specific document
+ */
+export async function getDocumentChunks(documentId) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/chunks`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn('Failed to fetch document chunks:', e.message);
+  }
+  return null;
+}
+
+/**
+ * Delete a document from RAG knowledge store
+ */
+export async function deleteDocument(documentId) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn('Failed to delete document:', e.message);
+    return false;
+  }
+}
+
 export const chatService = {
   streamChatMessage,
   getConversations,
@@ -221,4 +251,6 @@ export const chatService = {
   renameConversation,
   uploadDocument,
   getDocuments,
+  getDocumentChunks,
+  deleteDocument,
 };

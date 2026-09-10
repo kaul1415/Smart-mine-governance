@@ -516,6 +516,71 @@ async def rag_documents():
     sconn.close()
     return {"documents": docs}
 
+@app.get("/rag/documents/{document_id}/chunks")
+async def rag_document_chunks(document_id: str):
+    """Retrieve all content chunks for a specific document."""
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("""
+                SELECT id, document_id, filename, content, created_at
+                FROM document_chunks
+                WHERE document_id = %s
+                ORDER BY id ASC;
+            """, (document_id,))
+            chunks = [dict(r) for r in cur.fetchall()]
+            cur.close()
+            conn.close()
+            if chunks:
+                return {"document_id": document_id, "filename": chunks[0]["filename"], "chunks": chunks}
+        except Exception:
+            if conn:
+                conn.close()
+
+    sconn = get_sqlite_conn()
+    scur = sconn.cursor()
+    scur.execute("""
+        SELECT id, document_id, filename, content, created_at
+        FROM document_chunks
+        WHERE document_id = ?
+        ORDER BY id ASC;
+    """, (document_id,))
+    chunks = [dict(r) for r in scur.fetchall()]
+    scur.close()
+    sconn.close()
+    if not chunks:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"document_id": document_id, "filename": chunks[0]["filename"], "chunks": chunks}
+
+@app.delete("/rag/documents/{document_id}")
+async def rag_delete_document(document_id: str):
+    """Delete a document and all its chunks from the RAG store."""
+    deleted_count = 0
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM document_chunks WHERE document_id = %s;", (document_id,))
+            deleted_count += cur.rowcount
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception:
+            if conn:
+                conn.rollback()
+                conn.close()
+
+    sconn = get_sqlite_conn()
+    scur = sconn.cursor()
+    scur.execute("DELETE FROM document_chunks WHERE document_id = ?;", (document_id,))
+    deleted_count += scur.rowcount
+    sconn.commit()
+    scur.close()
+    sconn.close()
+
+    return {"success": True, "document_id": document_id, "deleted_chunks": deleted_count}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=HOST, port=PORT, reload=False)

@@ -10,5 +10,7 @@ const upload = multer({
 
 router.post('/', upload.single('file'), documentController.uploadDocument);
 router.get('/', documentController.getDocuments);
+router.get('/:documentId/chunks', documentController.getDocumentChunks);
+router.delete('/:documentId', documentController.deleteDocument);
 
 module.exports = router;
