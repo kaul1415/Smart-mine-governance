@@ -54,8 +54,13 @@ export default function MineDetails() {
         riskService.getRiskForMine(id),
         auditService.getAuditLogs(),
       ]);
-      const entityIds = new Set([...flags.map((f) => f.id), ...actions.map((a) => a.id)]);
-      const activity = allAudit.filter((log) => entityIds.has(log.entity));
+      const entityIds = new Set([
+        ...flags.map((f) => f.id),
+        ...actions.map((a) => a.id),
+        ...inspections.map((i) => i.id),
+        id,
+      ]);
+      const activity = allAudit.filter((log) => entityIds.has(log.entity) || entityIds.has(log.entityId));
       setState({ status: 'success', data: { mine, flags, compliance, inspections, actions, risk, activity }, error: null });
     } catch (err) {
       setState({ status: 'error', data: null, error: err.message || 'Unable to load this mine.' });

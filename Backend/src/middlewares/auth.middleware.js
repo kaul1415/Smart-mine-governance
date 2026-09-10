@@ -29,6 +29,8 @@ const verifyToken = async (req, res, next) => {
       select: {
         id: true,
         email: true,
+        name: true,
+        username: true,
         role: true,
         department: true,
         contractorId: true,
@@ -45,6 +47,8 @@ const verifyToken = async (req, res, next) => {
     req.user = {
       userId: user.id,
       id: user.id,
+      name: user.name,
+      username: user.username,
       email: user.email,
       role: user.role,
       department: user.department,

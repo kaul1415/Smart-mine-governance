@@ -21,7 +21,8 @@ import { riskService } from '../../services/riskService.js';
 import { notificationService } from '../../services/notificationService.js';
 import { noticeService } from '../../services/noticeService.js';
 import { dashboardService } from '../../services/dashboardService.js';
-import { mockComplianceTrend, mockResponses } from '../../data/mockData.js';
+import { responseService } from '../../services/responseService.js';
+import { mockComplianceTrend } from '../../data/mockData.js';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setState({ status: 'loading', data: null, error: null });
     try {
-      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats] = await Promise.all([
+      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats, responses] = await Promise.all([
         mineService.getMines(),
         mineService.getHighRiskMines(),
         flagService.getRecentFlags(5),
@@ -39,10 +40,11 @@ export default function Dashboard() {
         notificationService.getRecentAlerts(4),
         noticeService.getNotices(user?.department),
         dashboardService.getDashboardStats(),
+        responseService.getResponses(),
       ]);
       setState({
         status: 'success',
-        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats },
+        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats, recentResponses: responses?.slice(0, 4) || [] },
         error: null,
       });
     } catch (err) {
@@ -72,7 +74,7 @@ export default function Dashboard() {
     );
   }
 
-  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats } = state.data;
+  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats, recentResponses } = state.data;
 
   return (
     <>
@@ -113,7 +115,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <RecentResponsesList responses={mockResponses} />
+        <RecentResponsesList responses={recentResponses || []} />
         <OverdueActionsList actions={overdueActions} />
       </div>
 

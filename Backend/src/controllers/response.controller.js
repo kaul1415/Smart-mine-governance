@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recordAuditLog } = require('../services/auditLogger');
 
 const getResponses = async (req, res) => {
   try {
@@ -58,16 +59,55 @@ const submitResponse = async (req, res) => {
     });
 
     // Update flag status if appropriate
-    if (payload.flagId && payload.responseType) {
-      let flagStatus = 'Action Required';
-      if (payload.responseType === 'Resolved') flagStatus = 'Resolved';
-      if (payload.responseType === 'Dismissed') flagStatus = 'Dismissed';
-      if (payload.responseType === 'Action Taken') flagStatus = 'Action Taken';
+    let targetFlag = null;
+    if (payload.flagId) {
+      targetFlag = await prisma.flag.findUnique({ where: { id: payload.flagId } });
+      if (payload.responseType) {
+        let flagStatus = 'Action Required';
+        if (payload.responseType === 'Resolved') flagStatus = 'Resolved';
+        if (payload.responseType === 'Dismissed') flagStatus = 'Dismissed';
+        if (payload.responseType === 'Action Taken') flagStatus = 'Action Taken';
 
-      await prisma.flag.update({
-        where: { id: payload.flagId },
-        data: { status: flagStatus },
-      }).catch(() => {});
+        await prisma.flag.update({
+          where: { id: payload.flagId },
+          data: { status: flagStatus },
+        }).catch(() => {});
+
+        if (['Resolved', 'Dismissed'].includes(flagStatus) && targetFlag && targetFlag.mineId && !['Resolved', 'Dismissed'].includes(targetFlag.status)) {
+          await prisma.mine.update({
+            where: { id: targetFlag.mineId },
+            data: { openFlags: { decrement: 1 } },
+          }).catch(() => {});
+        }
+      }
+    }
+
+    // Log to audit trail
+    const authorityActor = payload.authority || req.user?.name || req.user?.username || 'Regulatory Authority';
+
+    // 1. Audit log for the response itself
+    await recordAuditLog({
+      user: authorityActor,
+      actorType: 'user',
+      action: payload.responseType ? `Submitted official response: ${payload.responseType}` : 'Submitted official response',
+      entity: created.id,
+      entityId: created.flagId || null,
+      metadata: {
+        flagId: created.flagId,
+        responseType: created.responseType,
+        authority: created.authority,
+      },
+    });
+
+    // 2. Audit log on the flag ticket so flag timeline shows it
+    if (payload.flagId) {
+      await recordAuditLog({
+        user: authorityActor,
+        actorType: 'user',
+        action: `Submitted response (${created.responseType})`,
+        entity: payload.flagId,
+        entityId: created.id,
+      });
     }
 
     return res.status(201).json(created);

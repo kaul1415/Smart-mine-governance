@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recordAuditLog } = require('../services/auditLogger');
 
 const getInspections = async (req, res) => {
   try {
@@ -53,7 +54,7 @@ const createInspection = async (req, res) => {
         id,
         mineId: payload.mineId || null,
         mineName: mineName || 'Unknown Mine',
-        inspector: payload.inspector || req.user.name || 'Inspector',
+        inspector: payload.inspector || req.user?.name || req.user?.username || 'Inspector',
         inspectionType: payload.inspectionType || 'Statutory Inspection',
         date: payload.date || new Date().toISOString(),
         status: payload.status || 'Scheduled',
@@ -61,6 +62,15 @@ const createInspection = async (req, res) => {
         checklist: payload.checklist || [],
         observations: payload.observations || [],
       },
+    });
+
+    await recordAuditLog({
+      user: req.user?.name || payload.inspector || 'Inspector',
+      actorType: 'user',
+      action: 'Created inspection',
+      entity: created.id,
+      entityId: created.mineId || created.id,
+      metadata: { inspectionType: created.inspectionType, mineName: created.mineName },
     });
 
     return res.status(201).json(created);
@@ -105,6 +115,15 @@ const submitObservation = async (req, res) => {
         status: 'In Progress',
         observations: updatedObs,
       },
+    });
+
+    await recordAuditLog({
+      user: req.user?.name || req.user?.username || 'Inspector',
+      actorType: 'user',
+      action: `Added observation (${observation.severity || 'MEDIUM'})`,
+      entity: id,
+      entityId: inspection.mineId || id,
+      metadata: { severity: observation.severity, category: observation.category },
     });
 
     return res.status(201).json(newObservation);

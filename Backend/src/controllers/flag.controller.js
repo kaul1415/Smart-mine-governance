@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recordAuditLog } = require('../services/auditLogger');
 
 const canSeeReporterIdentity = (user) => {
   if (!user) return false;
@@ -131,17 +132,19 @@ const createFlag = async (req, res) => {
       }).catch(() => {});
     }
 
-    // Log to audit log
-    await prisma.auditLog.create({
-      data: {
-        actor: req.user.email || req.user.userId,
-        actorType: 'user',
-        action: 'CREATED_FLAG',
-        entity: 'Flag',
-        entityId: flag.id,
-        metadata: { category: flag.category, severity: flag.severity },
-      },
-    }).catch(() => {});
+    // Log to audit trail
+    const actorName = flag.isConfidential
+      ? 'Confidential Reporter'
+      : (req.user?.name || req.user?.username || req.user?.email || 'Inspector');
+
+    await recordAuditLog({
+      user: actorName,
+      actorType: 'user',
+      action: 'Created flag',
+      entity: flag.id,
+      entityId: flag.mineId || flag.id,
+      metadata: { category: flag.category, severity: flag.severity, mineName: flag.mineName },
+    });
 
     return res.status(201).json(sanitizeFlag(flag, req.user));
   } catch (error) {
@@ -155,9 +158,34 @@ const updateFlag = async (req, res) => {
     const { id } = req.params;
     const patch = req.body;
 
+    const oldFlag = await prisma.flag.findUnique({ where: { id } });
+
     const flag = await prisma.flag.update({
       where: { id },
       data: patch,
+    });
+
+    // If status changed to resolved/closed, decrement mine openFlags
+    if (patch.status && ['Resolved', 'Closed'].includes(patch.status) && oldFlag && !['Resolved', 'Closed'].includes(oldFlag.status) && flag.mineId) {
+      await prisma.mine.update({
+        where: { id: flag.mineId },
+        data: { openFlags: { decrement: 1 } },
+      }).catch(() => {});
+    }
+
+    // Log to audit trail
+    let actionText = 'Updated flag';
+    if (patch.status) actionText = `Updated status to ${patch.status}`;
+    else if (patch.assignedAuthority) actionText = `Assigned to ${patch.assignedAuthority}`;
+    else if (patch.severity) actionText = `Updated severity to ${patch.severity}`;
+
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: actionText,
+      entity: flag.id,
+      entityId: flag.mineId || flag.id,
+      metadata: patch,
     });
 
     return res.status(200).json(sanitizeFlag(flag, req.user));

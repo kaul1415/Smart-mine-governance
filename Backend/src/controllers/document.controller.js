@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recordAuditLog } = require('../services/auditLogger');
 
 const getDocuments = async (req, res) => {
   try {
@@ -83,6 +84,15 @@ const uploadDocument = async (req, res) => {
         extractedData: null,
         fileUrl: req.file ? `/uploads/${req.file.filename}` : payload.fileUrl || null,
       },
+    });
+
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: `Uploaded document: ${created.name}`,
+      entity: created.id,
+      entityId: created.mineId || created.id,
+      metadata: { mineName: created.mineName, fileType: created.fileType },
     });
 
     return res.status(202).json(created);

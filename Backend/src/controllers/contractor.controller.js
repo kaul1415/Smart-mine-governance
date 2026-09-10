@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recordAuditLog } = require('../services/auditLogger');
 
 // Helper to check contractor authorization
 const checkContractorAuth = (req, contractorId) => {
@@ -98,6 +99,15 @@ const uploadReport = async (req, res) => {
       },
     });
 
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: `Uploaded contractor report (${created.reportType})`,
+      entity: created.id,
+      entityId: created.contractorId,
+      metadata: { projectName: created.projectName },
+    });
+
     return res.status(201).json(created);
   } catch (error) {
     console.error('uploadReport error:', error);
@@ -149,6 +159,14 @@ const finalizeReport = async (req, res) => {
       },
     });
 
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: 'Submitted contractor report',
+      entity: id,
+      entityId: updated.contractorId,
+    });
+
     return res.status(200).json(updated);
   } catch (error) {
     console.error('finalizeReport error:', error);
@@ -185,6 +203,15 @@ const recordAttendance = async (req, res) => {
         absent: parseInt(payload.absent, 10) || 0,
         shift: payload.shift || 'General',
       },
+    });
+
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: `Recorded attendance for shift ${payload.shift || 'General'}`,
+      entity: created.id,
+      entityId: id,
+      metadata: { workers: payload.workers, present: payload.present },
     });
 
     return res.status(201).json(created);
@@ -237,6 +264,14 @@ const uploadDocument = async (req, res) => {
         status: 'Verified',
         fileUrl: payload.fileUrl || null,
       },
+    });
+
+    await recordAuditLog({
+      user: req.user,
+      actorType: 'user',
+      action: `Uploaded contractor document: ${created.name}`,
+      entity: created.id,
+      entityId: id,
     });
 
     return res.status(201).json(created);
