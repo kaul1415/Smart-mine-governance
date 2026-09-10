@@ -1,1 +1,293 @@
-const prisma = require('../config/db');const {  scheduleInspectionSchema,  updateInspectionSchema,  completeInspectionSchema,} = require('../validators/inspection.validator');const { logAudit } = require('../utils/auditLogger');const { ZodError } = require('zod');/** * List inspections with filtering by mine, inspector, status, or date * GET /api/inspections */const getInspections = async (req, res) => {  try {    const { mineId, inspectorId, status, page = '1', limit = '10' } = req.query;    const where = {};    if (mineId) where.mineId = mineId;    if (inspectorId) where.inspectorId = inspectorId;    if (status) where.status = status;    // Mine officials & Inspectors may filter only their mine or assigned inspections    if (req.user.role === 'INSPECTOR' && !inspectorId) {      where.inspectorId = req.user.userId;    }    const pageNum = parseInt(page, 10);    const limitNum = parseInt(limit, 10);    const skip = (pageNum - 1) * limitNum;    const [total, inspections] = await Promise.all([      prisma.inspection.count({ where }),      prisma.inspection.findMany({        where,        skip,        take: limitNum,        orderBy: { scheduledDate: 'desc' },        include: {          mine: {            select: { id: true, name: true, code: true, subsidiary: true, state: true },          },          inspector: {            select: { id: true, name: true, email: true, designation: true },          },          _count: {            select: { violations: true },          },        },      }),    ]);    return res.status(200).json({      success: true,      pagination: {        total,        page: pageNum,        limit: limitNum,        totalPages: Math.ceil(total / limitNum),      },      data: inspections,    });  } catch (error) {    console.error('getInspections error:', error);    return res.status(500).json({ success: false, message: 'Failed to fetch inspections' });  }};/** * Get inspection details by ID including violations and assigned corrective actions * GET /api/inspections/:id */const getInspectionById = async (req, res) => {  try {    const { id } = req.params;    const inspection = await prisma.inspection.findUnique({      where: { id },      include: {        mine: true,        inspector: {          select: { id: true, name: true, email: true, phone: true, designation: true },        },        violations: {          include: {            reporter: {              select: { id: true, name: true, email: true, role: true },            },            actions: {              include: {                assignee: {                  select: { id: true, name: true, email: true, role: true },                },              },            },          },        },      },    });    if (!inspection) {      return res.status(404).json({ success: false, message: 'Inspection not found' });    }    return res.status(200).json({      success: true,      data: inspection,    });  } catch (error) {    console.error('getInspectionById error:', error);    return res.status(500).json({ success: false, message: 'Failed to fetch inspection details' });  }};/** * Schedule a new inspection * POST /api/inspections */const scheduleInspection = async (req, res) => {  try {    const validatedData = scheduleInspectionSchema.parse(req.body);    // Default inspectorId to authenticated user if role is INSPECTOR, otherwise validate    const inspectorId = validatedData.inspectorId || req.user.userId;    const [mine, inspector] = await Promise.all([      prisma.mine.findUnique({ where: { id: validatedData.mineId } }),      prisma.user.findUnique({ where: { id: inspectorId } }),    ]);    if (!mine) {      return res.status(404).json({ success: false, message: 'Mine not found' });    }    if (!inspector) {      return res.status(404).json({ success: false, message: 'Assigned inspector not found' });    }    const inspection = await prisma.inspection.create({      data: {        mineId: validatedData.mineId,        inspectorId,        title: validatedData.title,        scheduledDate: new Date(validatedData.scheduledDate),        notes: validatedData.notes,        status: 'SCHEDULED',      },    });    await logAudit({      userId: req.user.userId,      action: 'INSPECTION_SCHEDULED',      entity: 'Inspection',      entityId: inspection.id,      metadata: { mineId: mine.id, inspectorId, title: inspection.title },    });    return res.status(201).json({      success: true,      message: 'Inspection scheduled successfully',      data: inspection,    });  } catch (error) {    if (error instanceof ZodError) {      return res.status(400).json({        success: false,        message: 'Validation failed',        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),      });    }    console.error('scheduleInspection error:', error);    return res.status(500).json({ success: false, message: 'Failed to schedule inspection' });  }};/** * Update inspection status or details * PUT /api/inspections/:id */const updateInspection = async (req, res) => {  try {    const { id } = req.params;    const validatedData = updateInspectionSchema.parse(req.body);    const existing = await prisma.inspection.findUnique({ where: { id } });    if (!existing) {      return res.status(404).json({ success: false, message: 'Inspection not found' });    }    const updated = await prisma.inspection.update({      where: { id },      data: {        ...validatedData,        ...(validatedData.scheduledDate && { scheduledDate: new Date(validatedData.scheduledDate) }),      },    });    await logAudit({      userId: req.user.userId,      action: 'INSPECTION_UPDATED',      entity: 'Inspection',      entityId: id,      metadata: { changes: validatedData },    });    return res.status(200).json({      success: true,      message: 'Inspection updated successfully',      data: updated,    });  } catch (error) {    if (error instanceof ZodError) {      return res.status(400).json({        success: false,        message: 'Validation failed',        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),      });    }    console.error('updateInspection error:', error);    return res.status(500).json({ success: false, message: 'Failed to update inspection' });  }};/** * Complete inspection with geo-tagging coordinates & report submission * POST /api/inspections/:id/complete */const completeInspection = async (req, res) => {  try {    const { id } = req.params;    const validatedData = completeInspectionSchema.parse(req.body);    const existing = await prisma.inspection.findUnique({      where: { id },      include: { violations: true },    });    if (!existing) {      return res.status(404).json({ success: false, message: 'Inspection not found' });    }    const hasCriticalViolations = existing.violations.some((v) => v.severity === 'CRITICAL' || v.severity === 'HIGH');    const finalStatus = validatedData.status || (hasCriticalViolations ? 'FLAGGED' : 'COMPLETED');    const completed = await prisma.inspection.update({      where: { id },      data: {        status: finalStatus,        latitude: validatedData.latitude,        longitude: validatedData.longitude,        reportUrl: validatedData.reportUrl,        notes: validatedData.notes,        completedDate: new Date(),      },    });    await logAudit({      userId: req.user.userId,      action: 'INSPECTION_COMPLETED',      entity: 'Inspection',      entityId: id,      metadata: {        status: finalStatus,        latitude: validatedData.latitude,        longitude: validatedData.longitude,        violationsCount: existing.violations.length,      },    });    return res.status(200).json({      success: true,      message: `Inspection marked as ${finalStatus} with verified geo-tag coordinates`,      data: completed,    });  } catch (error) {    if (error instanceof ZodError) {      return res.status(400).json({        success: false,        message: 'Validation failed',        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),      });    }    console.error('completeInspection error:', error);    return res.status(500).json({ success: false, message: 'Failed to complete inspection' });  }};module.exports = {  getInspections,  getInspectionById,  scheduleInspection,  updateInspection,  completeInspection,};
+const prisma = require('../config/db');
+const {
+  scheduleInspectionSchema,
+  updateInspectionSchema,
+  completeInspectionSchema,
+} = require('../validators/inspection.validator');
+const { logAudit } = require('../utils/auditLogger');
+const { ZodError } = require('zod');
+
+/**
+ * List inspections with filtering by mine, inspector, status, or date
+ * GET /api/inspections
+ */
+const getInspections = async (req, res) => {
+  try {
+    const { mineId, inspectorId, status, page = '1', limit = '10' } = req.query;
+
+    const where = {};
+    if (mineId) where.mineId = mineId;
+    if (inspectorId) where.inspectorId = inspectorId;
+    if (status) where.status = status;
+
+    // Mine officials & Inspectors may filter only their mine or assigned inspections
+    if (req.user.role === 'INSPECTOR' && !inspectorId) {
+      where.inspectorId = req.user.userId;
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, inspections] = await Promise.all([
+      prisma.inspection.count({ where }),
+      prisma.inspection.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { scheduledDate: 'desc' },
+        include: {
+          mine: {
+            select: { id: true, name: true, code: true, subsidiary: true, state: true },
+          },
+          inspector: {
+            select: { id: true, name: true, email: true, designation: true },
+          },
+          _count: {
+            select: { violations: true },
+          },
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+      data: inspections,
+    });
+  } catch (error) {
+    console.error('getInspections error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch inspections' });
+  }
+};
+
+/**
+ * Get inspection details by ID including violations and assigned corrective actions
+ * GET /api/inspections/:id
+ */
+const getInspectionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const inspection = await prisma.inspection.findUnique({
+      where: { id },
+      include: {
+        mine: true,
+        inspector: {
+          select: { id: true, name: true, email: true, phone: true, designation: true },
+        },
+        violations: {
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true, role: true },
+            },
+            actions: {
+              include: {
+                assignee: {
+                  select: { id: true, name: true, email: true, role: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!inspection) {
+      return res.status(404).json({ success: false, message: 'Inspection not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: inspection,
+    });
+  } catch (error) {
+    console.error('getInspectionById error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch inspection details' });
+  }
+};
+
+/**
+ * Schedule a new inspection
+ * POST /api/inspections
+ */
+const scheduleInspection = async (req, res) => {
+  try {
+    const validatedData = scheduleInspectionSchema.parse(req.body);
+
+    // Default inspectorId to authenticated user if role is INSPECTOR, otherwise validate
+    const inspectorId = validatedData.inspectorId || req.user.userId;
+
+    const [mine, inspector] = await Promise.all([
+      prisma.mine.findUnique({ where: { id: validatedData.mineId } }),
+      prisma.user.findUnique({ where: { id: inspectorId } }),
+    ]);
+
+    if (!mine) {
+      return res.status(404).json({ success: false, message: 'Mine not found' });
+    }
+    if (!inspector) {
+      return res.status(404).json({ success: false, message: 'Assigned inspector not found' });
+    }
+
+    const inspection = await prisma.inspection.create({
+      data: {
+        mineId: validatedData.mineId,
+        inspectorId,
+        title: validatedData.title,
+        scheduledDate: new Date(validatedData.scheduledDate),
+        notes: validatedData.notes,
+        status: 'SCHEDULED',
+      },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'INSPECTION_SCHEDULED',
+      entity: 'Inspection',
+      entityId: inspection.id,
+      metadata: { mineId: mine.id, inspectorId, title: inspection.title },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Inspection scheduled successfully',
+      data: inspection,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('scheduleInspection error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to schedule inspection' });
+  }
+};
+
+/**
+ * Update inspection status or details
+ * PUT /api/inspections/:id
+ */
+const updateInspection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const validatedData = updateInspectionSchema.parse(req.body);
+
+    const existing = await prisma.inspection.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Inspection not found' });
+    }
+
+    const updated = await prisma.inspection.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        ...(validatedData.scheduledDate && { scheduledDate: new Date(validatedData.scheduledDate) }),
+      },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'INSPECTION_UPDATED',
+      entity: 'Inspection',
+      entityId: id,
+      metadata: { changes: validatedData },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Inspection updated successfully',
+      data: updated,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('updateInspection error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update inspection' });
+  }
+};
+
+/**
+ * Complete inspection with geo-tagging coordinates & report submission
+ * POST /api/inspections/:id/complete
+ */
+const completeInspection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const validatedData = completeInspectionSchema.parse(req.body);
+
+    const existing = await prisma.inspection.findUnique({
+      where: { id },
+      include: { violations: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Inspection not found' });
+    }
+
+    const hasCriticalViolations = existing.violations.some((v) => v.severity === 'CRITICAL' || v.severity === 'HIGH');
+    const finalStatus = validatedData.status || (hasCriticalViolations ? 'FLAGGED' : 'COMPLETED');
+
+    const completed = await prisma.inspection.update({
+      where: { id },
+      data: {
+        status: finalStatus,
+        latitude: validatedData.latitude,
+        longitude: validatedData.longitude,
+        reportUrl: validatedData.reportUrl,
+        notes: validatedData.notes,
+        completedDate: new Date(),
+      },
+    });
+
+    await logAudit({
+      userId: req.user.userId,
+      action: 'INSPECTION_COMPLETED',
+      entity: 'Inspection',
+      entityId: id,
+      metadata: {
+        status: finalStatus,
+        latitude: validatedData.latitude,
+        longitude: validatedData.longitude,
+        violationsCount: existing.violations.length,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Inspection marked as ${finalStatus} with verified geo-tag coordinates`,
+      data: completed,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      });
+    }
+    console.error('completeInspection error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to complete inspection' });
+  }
+};
+
+module.exports = {
+  getInspections,
+  getInspectionById,
+  scheduleInspection,
+  updateInspection,
+  completeInspection,
+};
