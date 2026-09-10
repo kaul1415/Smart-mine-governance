@@ -11,6 +11,8 @@ import {
   Zap,
   X,
   RefreshCw,
+  Trash2,
+  Server,
 } from 'lucide-react';
 import ChatSidebar from '../../components/copilot/ChatSidebar.jsx';
 import ChatMessage from '../../components/copilot/ChatMessage.jsx';
@@ -122,6 +124,13 @@ export default function AICopilot() {
     if (id === activeId) {
       setActiveId(remaining.length > 0 ? remaining[0].id : null);
     }
+  }
+
+  async function handleWipeTemporaryChat() {
+    if (!activeId) return;
+    await chatService.deleteConversation(activeId);
+    setConversations((prev) => prev.filter((c) => c.id !== activeId));
+    handleNewChat(false);
   }
 
   async function handleSend(text) {
@@ -277,6 +286,12 @@ export default function AICopilot() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Offline AI Server Indicator */}
+            <div className="hidden items-center gap-1.5 rounded-full border border-status-success/30 bg-status-successBg px-2 py-1 text-[11px] font-medium text-status-success sm:flex">
+              <Server size={12} />
+              <span>Offline Server</span>
+            </div>
+
             {/* Persistence Mode Toggle */}
             <div className="flex items-center gap-2 rounded-md border border-border bg-surface-sunken px-2.5 py-1.5">
               {isPersistent ? (
@@ -289,7 +304,7 @@ export default function AICopilot() {
                   {isPersistent ? 'Persistent' : 'Once Chat'}
                 </span>
                 <span className="text-[9px] text-ink-500">
-                  {isPersistent ? 'Saved to DB' : 'In-memory only'}
+                  {isPersistent ? 'Saved to DB' : 'Temporary'}
                 </span>
               </div>
               <label className="relative ml-1 inline-flex cursor-pointer items-center">
@@ -308,6 +323,18 @@ export default function AICopilot() {
                 <div className="peer h-4 w-7 rounded-full bg-border-strong after:absolute after:left-[2px] after:top-[2px] after:h-3 after:w-3 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-800 peer-checked:after:translate-x-full"></div>
               </label>
             </div>
+
+            {/* Wipe Temporary Chat Button (Only visible in Once Chat mode with messages) */}
+            {!isPersistent && active && active.messages && active.messages.length > 0 && (
+              <button
+                onClick={handleWipeTemporaryChat}
+                className="flex items-center gap-1 rounded border border-status-danger/30 bg-status-dangerBg/50 px-2 py-1.5 text-xs font-medium text-status-danger hover:bg-status-dangerBg"
+                title="Immediately erase this temporary chat from memory"
+              >
+                <Trash2 size={12} />
+                <span className="hidden sm:inline">Wipe Chat</span>
+              </button>
+            )}
 
             {/* RAG Knowledge Base Button */}
             <button
