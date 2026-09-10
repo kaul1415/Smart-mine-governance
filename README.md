@@ -223,28 +223,81 @@ Double-click `start-all.bat` or run:
 ```cmd
 start-all.bat
 ```
-*Checks Ollama, spins up the ML service (8001), Backend (5000), Frontend (5173), and automatically opens your browser to `http://localhost:5173/copilot`.*
+*Checks Ollama, spins up PostgreSQL, ML service (8001), Backend (5000), Frontend (5173), and opens `http://localhost:5173/copilot`.*
 
-#### Option B: PowerShell (`.ps1`)
+#### Option B: Linux / macOS (`.sh`)
+```bash
+chmod +x start-all.sh
+./start-all.sh
+```
+
+#### Option C: PowerShell (`.ps1`)
 ```powershell
 .\start-all.ps1
 ```
 *Supports pointing to a remote offline LAN server with `.\start-all.ps1 -OfflineServer 192.168.1.100`.*
 
 #### Stopping Services
-Double-click `stop-all.bat` to gracefully terminate all services and free ports.
+Double-click `stop-all.bat` (on Windows) or press `Ctrl+C` (in `start-all.sh`) to gracefully terminate all services.
+
+---
+
+### Database Setup Options
+
+CoalGov includes automatic database management with multiple options:
+
+#### 1. Zero-Config Embedded PostgreSQL (Default)
+When you start the Backend (`npm start` or `npm run dev`), CoalGov will **automatically** initialize a local PostgreSQL instance on port `5432`, create `coalgov_db`, push the Prisma schema, and seed initial mock data and cryptographic audit trails. No manual installation required!
+
+#### 2. Docker Compose (Universal)
+If you prefer running standard PostgreSQL via Docker:
+```bash
+docker compose up -d postgres
+```
+
+#### 3. Manual Database Bootstrap & Seeding
+At any time, you can initialize or re-seed the database:
+```bash
+# From project root
+npm run db:setup
+
+# Or inside Backend/
+cd Backend
+npm run db:setup
+```
 
 ---
 
 ### Manual Step-by-Step Setup
 
-#### 1. Setup ML Service
+#### 1. Setup Node.js Backend & Database
+```bash
+cd Backend
+cp .env.example .env
+npm install
+npm run db:setup
+npm run dev
+```
+
+#### 2. Setup React Frontend
+```bash
+cd Frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+*Frontend runs on `http://localhost:5173`.*
+
+#### 3. Setup ML Service (Optional for Offline AI Copilot)
 ```bash
 cd ML
 python -m venv venv
+# On Windows:
 .\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
 
-# Install PyTorch CPU wheel and dependencies
+# Install PyTorch CPU and dependencies
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 
@@ -252,22 +305,19 @@ pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8001
 ```
 
-#### 2. Setup Node.js Backend
-```bash
-cd Backend
-npm install
-npx prisma generate
-node src/index.js
-```
+---
 
-#### 3. Setup React Frontend
-```bash
-cd Frontend
-npm install
-npm run dev
-```
+### 🔑 Default Demo Accounts & Credentials
 
-Visit **`http://localhost:5173`** in your browser.
+All default accounts use password: **`password123`**
+
+| Portal / Role | Email / Username | Department / ID | Description |
+|---|---|---|---|
+| **Corporate Admin** | `system@coalgov.in` (`system`) | `system` | Full administrative oversight across all mines |
+| **Safety & Rescue** | `safety_rescue@coalgov.in` (`safety`) | `safety_rescue` | DGMS statutory compliance, hazard flags, audit logs |
+| **Mine Manager (Production)** | `production@coalgov.in` (`production`) | `production` | Mine operational management & response actions |
+| **Contractor Portal** | `contractor@minegov.ai` (`contractor`) | `C-101` (Apex Logistics) | Corrective action responses & daily reports |
+| **Regulator (DGMS/CCO)** | `regulator@minegov.ai` (`regulator`) | DGMS Inspectorate | Regulatory inspection notices & closure audits |
 
 ---
 

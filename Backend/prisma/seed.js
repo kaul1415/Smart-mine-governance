@@ -252,10 +252,11 @@ async function seed() {
   console.log(`Seeding contractor documents...`);
   for (let i = 0; i < mock.mockContractorDocuments.length; i++) {
     const cd = mock.mockContractorDocuments[i];
+    const docId = cd.id || `CD-${i + 1}`;
     await prisma.contractorDocument.upsert({
-      where: { id: `CD-${i + 1}` },
-      update: cd,
-      create: { id: `CD-${i + 1}`, ...cd },
+      where: { id: docId },
+      update: { ...cd, id: docId },
+      create: { ...cd, id: docId },
     });
   }
 
@@ -263,10 +264,11 @@ async function seed() {
   console.log(`Seeding risk notifications...`);
   for (let i = 0; i < mock.mockRiskNotifications.length; i++) {
     const rn = mock.mockRiskNotifications[i];
+    const rnId = rn.id || `RN-${i + 1}`;
     await prisma.riskNotification.upsert({
-      where: { id: `RN-${i + 1}` },
-      update: rn,
-      create: { id: `RN-${i + 1}`, ...rn },
+      where: { id: rnId },
+      update: { ...rn, id: rnId },
+      create: { ...rn, id: rnId },
     });
   }
 

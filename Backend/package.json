@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "setup": "node src/config/setupDb.js",
+    "db:setup": "node src/config/setupDb.js",
     "db:start": "node -e \"require('./src/config/dbLauncher').ensurePostgresRunning().then(()=>console.log('PostgreSQL ready')).catch(console.error)\"",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",

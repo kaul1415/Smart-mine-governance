@@ -1,0 +1,32 @@
+{
+  "name": "coalgov-platform",
+  "version": "1.0.0",
+  "description": "Smart Mine Governance and Statutory Compliance Platform",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix Backend install && npm --prefix Frontend install && npm --prefix Backend run setup",
+    "db:setup": "npm --prefix Backend run db:setup",
+    "db:start": "npm --prefix Backend run db:start",
+    "db:seed": "npm --prefix Backend run db:seed",
+    "db:push": "npm --prefix Backend run db:push",
+    "db:studio": "npm --prefix Backend run prisma:studio",
+    "docker:db": "docker compose up -d postgres",
+    "docker:db:down": "docker compose down",
+    "dev:backend": "npm --prefix Backend run dev",
+    "dev:frontend": "npm --prefix Frontend run dev",
+    "build:frontend": "npm --prefix Frontend run build",
+    "start:backend": "npm --prefix Backend run start"
+  },
+  "keywords": [
+    "coalgov",
+    "mining",
+    "compliance",
+    "governance",
+    "react",
+    "express",
+    "prisma",
+    "postgresql"
+  ],
+  "author": "",
+  "license": "ISC"
+}
