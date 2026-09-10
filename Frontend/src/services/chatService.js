@@ -1,167 +1,224 @@
-import { apiClient, USE_MOCKS, mockDelay } from './api.js';
-import {
-  mockChatConversations,
-  mockMines,
-  mockRiskScores,
-  mockFlags,
-  mockCorrectiveActions,
-  mockContractors,
-  mockContractorPerformance,
-  mockComplianceRequirements,
-  mockRecurringIssues,
-} from '../data/mockData.js';
+import { API_BASE_URL } from './api.js';
 
-let conversations = [...mockChatConversations];
+let localConversations = [];
 
-function sortedByRecency() {
-  return [...conversations].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
+/**
+ * Streams chat tokens from the backend using fetch and ReadableStream
+ */
+export async function streamChatMessage({
+  sessionId,
+  message,
+  isPersistent = false,
+  onToken,
+  onComplete,
+  onError,
+}) {
+  try {
+    const token = localStorage.getItem('minegov_auth_token');
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        sessionId,
+        message,
+        isPersistent,
+      }),
+    });
 
-async function getConversations() {
-  if (USE_MOCKS) return mockDelay(sortedByRecency());
-  return apiClient.get('/chats'); // GET /chats
-}
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Chat request failed (${response.status}): ${errText}`);
+    }
 
-async function getConversation(id) {
-  if (USE_MOCKS) return mockDelay(conversations.find((c) => c.id === id) ?? null);
-  return apiClient.get(`/chats/${id}/messages`); // GET /chats/:id/messages
-}
+    if (!response.body) {
+      throw new Error('ReadableStream not supported by response');
+    }
 
-async function createConversation() {
-  if (USE_MOCKS) {
-    const newConv = { id: `chat-${Date.now()}`, title: 'New Chat', createdAt: new Date().toISOString(), messages: [] };
-    conversations = [newConv, ...conversations];
-    return mockDelay(newConv, 200);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let accumulatedText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.token) {
+              accumulatedText += data.token;
+              if (onToken) onToken(data.token, accumulatedText);
+            }
+            if (data.error) {
+              if (onError) onError(new Error(data.error));
+            }
+          } catch (parseErr) {
+            // Non-json SSE data line
+          }
+        }
+      }
+    }
+
+    if (onComplete) onComplete(accumulatedText);
+    return accumulatedText;
+  } catch (err) {
+    if (onError) onError(err);
+    throw err;
   }
-  return apiClient.post('/chats', {}); // POST /chats
 }
 
-async function renameConversation(id, title) {
-  if (USE_MOCKS) {
-    conversations = conversations.map((c) => (c.id === id ? { ...c, title } : c));
-    return mockDelay(true, 200);
+/**
+ * Get chat sessions
+ */
+export async function getConversations() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/sessions`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.sessions) {
+        return data.sessions.map((s) => ({
+          id: s.id,
+          title: s.title || 'Conversation',
+          isPersistent: s.isPersistent,
+          createdAt: s.createdAt,
+          messages: s.messages || [],
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Backend sessions fetch failed, fallback to local:', e.message);
   }
-  return apiClient.patch(`/chats/${id}`, { title });
+  return localConversations;
 }
 
-async function deleteConversation(id) {
-  if (USE_MOCKS) {
-    conversations = conversations.filter((c) => c.id !== id);
-    return mockDelay(true, 200);
-  }
-  return apiClient.delete(`/chats/${id}`);
-}
-
-// NOTE: this is a mock stand-in for the real RAG/AI backend. In real
-// mode, sendMessage only ever posts the user's message and returns
-// whatever the backend/AI service responds with — no answer
-// generation happens in the browser.
-function generateMockReply(query) {
-  const q = query.toLowerCase();
-
-  const mineMatch = mockMines.find((m) => q.includes(m.name.toLowerCase().split(' — ')[0].toLowerCase()) || q.includes(m.id.replace('mine-', 'mine ')));
-  if (mineMatch && (q.includes('risk') || q.includes('why'))) {
-    const risk = mockRiskScores.find((r) => r.mineId === mineMatch.id);
-    if (risk) {
-      const top = [...risk.contributors].sort((a, b) => b.weight - a.weight).slice(0, 2).map((c) => c.label.toLowerCase());
+/**
+ * Get messages for a session
+ */
+export async function getConversation(id) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/sessions/${id}/messages`);
+    if (res.ok) {
+      const data = await res.json();
       return {
-        content: `${mineMatch.name}'s risk score is ${risk.score}/100 (${risk.level}), ${risk.trend === 'up' ? 'up' : 'down'} from ${risk.previousScore} last month. The leading contributors are ${top.join(' and ')}.`,
-        sources: [mineMatch.name, ...risk.contributors.map((c) => c.label)],
+        id,
+        messages: data.messages || [],
       };
     }
+  } catch (e) {
+    console.warn('Session messages fetch failed:', e.message);
   }
-
-  if (q.includes('overdue')) {
-    const overdue = mockCorrectiveActions.filter((a) => a.isOverdue);
-    if (overdue.length === 0) return { content: 'There are no overdue corrective actions right now.', sources: [] };
-    return {
-      content: `There ${overdue.length === 1 ? 'is' : 'are'} ${overdue.length} overdue corrective action(s): ${overdue.map((a) => `${a.id} (${a.issue}, ${a.mineName})`).join('; ')}.`,
-      sources: overdue.map((a) => a.id),
-    };
-  }
-
-  if (q.includes('high-severity') || q.includes('high severity') || (q.includes('flag') && q.includes('unresolved'))) {
-    const open = mockFlags.filter((f) => f.severity === 'HIGH' && !['Resolved', 'Dismissed', 'Closed'].includes(f.status));
-    if (open.length === 0) return { content: 'There are no unresolved high-severity flags right now.', sources: [] };
-    return {
-      content: `${open.length} unresolved high-severity flag(s): ${open.map((f) => `${f.id} (${f.category}, ${f.mineName})`).join('; ')}.`,
-      sources: open.map((f) => f.id),
-    };
-  }
-
-  if (q.includes('contractor') && q.includes('risk')) {
-    const riskiest = [...mockContractors].sort((a, b) => b.riskScore - a.riskScore)[0];
-    return {
-      content: `${riskiest.name} currently has the highest risk among contractors, at ${riskiest.riskScore}/100 (${riskiest.riskLevel}), operating primarily at ${riskiest.primaryMineName}.`,
-      sources: [riskiest.name],
-    };
-  }
-
-  if (q.includes('contractor') && q.includes('performance')) {
-    const sorted = [...mockContractors].map((c) => ({ ...c, overall: mockContractorPerformance[c.id]?.overall ?? 0 })).sort((a, b) => a.overall - b.overall);
-    const lowest = sorted[0];
-    const highest = sorted[sorted.length - 1];
-    return {
-      content: `${lowest.name} has the lowest overall performance at ${lowest.overall}%. ${highest.name} leads at ${highest.overall}%.`,
-      sources: [lowest.name, highest.name],
-    };
-  }
-
-  if (q.includes('compliance') && q.includes('due')) {
-    const dueSoon = mockComplianceRequirements.filter((c) => c.status === 'Due Soon' || c.status === 'Overdue');
-    if (dueSoon.length === 0) return { content: 'No compliance requirements are due soon.', sources: [] };
-    return {
-      content: `${dueSoon.length} requirement(s) due soon or overdue: ${dueSoon.map((c) => `${c.requirement} (${c.mineName})`).join('; ')}.`,
-      sources: dueSoon.map((c) => c.id),
-    };
-  }
-
-  if (q.includes('recurring')) {
-    if (mockRecurringIssues.length === 0) return { content: 'No recurring issues detected right now.', sources: [] };
-    const top = mockRecurringIssues[0];
-    return {
-      content: `The most significant recurring issue is "${top.issueType}" at ${top.mineName} — ${top.occurrencesLast3Months} occurrence(s) in the last 3 months, involving ${top.contractorInvolved}. Recommendation: ${top.recommendation}`,
-      sources: mockRecurringIssues.map((i) => i.issueType),
-    };
-  }
-
-  return {
-    content:
-      "I can answer questions about mine risk, flags, corrective actions, compliance, contractors, and recurring issues. Try asking about a specific mine, or one of the suggested questions.",
-    sources: [],
-  };
+  return localConversations.find((c) => c.id === id) || null;
 }
 
-async function sendMessage(conversationId, text) {
-  const userMessage = { id: `m${Date.now()}`, role: 'user', content: text, timestamp: new Date().toISOString() };
+/**
+ * Create a new conversation session
+ */
+export async function createConversation(isPersistent = false, title = 'New Chat') {
+  const newConv = {
+    id: `session-${Date.now()}`,
+    title,
+    isPersistent,
+    createdAt: new Date().toISOString(),
+    messages: [],
+  };
 
-  if (USE_MOCKS) {
-    conversations = conversations.map((c) =>
-      c.id === conversationId
-        ? { ...c, title: c.messages.length === 0 ? text : c.title, messages: [...c.messages, userMessage] }
-        : c
-    );
-    const reply = generateMockReply(text);
-    const assistantMessage = {
-      id: `m${Date.now() + 1}`,
-      role: 'assistant',
-      content: reply.content,
-      sources: reply.sources,
-      timestamp: new Date().toISOString(),
-    };
-    await mockDelay(null, 700);
-    conversations = conversations.map((c) => (c.id === conversationId ? { ...c, messages: [...c.messages, assistantMessage] } : c));
-    return conversations.find((c) => c.id === conversationId);
+  try {
+    const res = await fetch(`${API_BASE_URL}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPersistent, title }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.session) {
+        return {
+          ...data.session,
+          messages: [],
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Create session API failed, using client session:', e.message);
   }
 
-  return apiClient.post(`/chats/${conversationId}/messages`, { content: text }); // POST /chats/:id/messages
+  localConversations = [newConv, ...localConversations];
+  return newConv;
+}
+
+/**
+ * Delete a session
+ */
+export async function deleteConversation(id) {
+  try {
+    await fetch(`${API_BASE_URL}/sessions/${id}`, { method: 'DELETE' });
+  } catch (e) {
+    console.warn('Delete session API failed:', e.message);
+  }
+  localConversations = localConversations.filter((c) => c.id !== id);
+  return true;
+}
+
+/**
+ * Rename a session
+ */
+export async function renameConversation(id, title) {
+  localConversations = localConversations.map((c) => (c.id === id ? { ...c, title } : c));
+  return true;
+}
+
+/**
+ * Upload document for RAG indexing
+ */
+export async function uploadDocument(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE_URL}/documents`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Upload failed: ${err}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Get ingested documents list
+ */
+export async function getDocuments() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/documents`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.documents || [];
+    }
+  } catch (e) {
+    console.warn('Get documents failed:', e.message);
+  }
+  return [];
 }
 
 export const chatService = {
+  streamChatMessage,
   getConversations,
   getConversation,
   createConversation,
-  renameConversation,
   deleteConversation,
-  sendMessage,
+  renameConversation,
+  uploadDocument,
+  getDocuments,
 };

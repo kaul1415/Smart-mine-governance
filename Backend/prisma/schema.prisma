@@ -73,6 +73,7 @@ model User {
   violations       Violation[]       @relation("ReportedViolations")
   actionsAssigned  CorrectiveAction[] @relation("AssignedActions")
   auditLogs        AuditLog[]
+  chatSessions     ChatSession[]
 
   @@map("users")
 }
@@ -189,3 +190,42 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model ChatSession {
+  id           String    @id @default(uuid())
+  userId       String?
+  isPersistent Boolean   @default(false)
+  title        String    @default("New Chat")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@map("chat_sessions")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  sessionId String
+  role      String      // "user" | "assistant" | "system"
+  content   String
+  createdAt DateTime    @default(now())
+
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model DocumentChunk {
+  id            String   @id @default(uuid())
+  documentId    String?  @map("document_id")
+  filename      String
+  content       String
+  embedding     Unsupported("vector(768)")?
+  embeddingJson Json?    @map("embedding_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("document_chunks")
+}
+

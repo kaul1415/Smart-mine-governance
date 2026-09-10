@@ -11,6 +11,8 @@ const complianceRoutes = require('./routes/compliance.routes');
 const inspectionRoutes = require('./routes/inspection.routes');
 const violationRoutes = require('./routes/violation.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const chatRoutes = require('./routes/chat.routes');
+const documentRoutes = require('./routes/document.routes');
 
 const app = express();
 
@@ -76,6 +78,8 @@ app.use('/api/compliances', complianceRoutes);
 app.use('/api/inspections', inspectionRoutes);
 app.use('/api/violations', violationRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api', chatRoutes);
+app.use('/api/documents', documentRoutes);
 
 // ==========================================
 // 404 Handler
