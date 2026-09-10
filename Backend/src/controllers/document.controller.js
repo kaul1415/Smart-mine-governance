@@ -166,3 +166,21 @@ exports.extractFields = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/** Extract all readable text from a PDF/image for field-reporting OCR. */
+exports.extractText = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    const formData = new FormData();
+    formData.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname);
+    const mlResponse = await fetch(`${ML_SERVICE_URL}/pdf/extract-text`, { method: 'POST', body: formData });
+    const data = await mlResponse.json().catch(() => ({}));
+    if (!mlResponse.ok) {
+      return res.status(mlResponse.status).json({ success: false, message: data.detail || data.message || 'OCR extraction failed' });
+    }
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('Error in document text extraction:', error);
+    return res.status(503).json({ success: false, message: 'OCR service is unavailable. Start the ML service and try again.' });
+  }
+};

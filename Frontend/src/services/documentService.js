@@ -1,4 +1,4 @@
-import { apiClient, USE_MOCKS, mockDelay } from './api.js';
+import { API_BASE_URL, apiClient, USE_MOCKS, mockDelay } from './api.js';
 import { mockDocuments } from '../data/mockData.js';
 
 let documents = [...mockDocuments];
@@ -51,4 +51,21 @@ async function processDocument(id) {
   return apiClient.get(`/documents/${id}`);
 }
 
-export const documentService = { getDocuments, getDocumentById, uploadDocument, processDocument };
+// OCR is deliberately a real local-service call even while the rest of the
+// field-reporting demo uses mock records. This lets a user paste OCR output
+// directly into a report before it is queued for sync.
+async function extractText(file) {
+  const token = localStorage.getItem('minegov_auth_token');
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/documents/extract-text`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || payload.detail || 'Unable to extract text from this file.');
+  return payload;
+}
+
+export const documentService = { getDocuments, getDocumentById, uploadDocument, processDocument, extractText };

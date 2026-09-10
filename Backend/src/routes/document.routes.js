@@ -9,6 +9,7 @@ const upload = multer({
 });
 
 router.post('/', upload.single('file'), documentController.uploadDocument);
+router.post('/extract-text', upload.single('file'), documentController.extractText);
 router.post('/extract-fields', upload.single('file'), documentController.extractFields);
 router.get('/', documentController.getDocuments);
 router.get('/:documentId/chunks', documentController.getDocumentChunks);

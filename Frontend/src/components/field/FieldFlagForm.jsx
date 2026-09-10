@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { FileText, Loader2, Send } from 'lucide-react';
 import Button from '../common/Button.jsx';
 import FileUploader from '../common/FileUploader.jsx';
 import { FLAG_CATEGORIES } from '../../data/mockData.js';
 import { SEVERITIES, REPORTER_TYPES } from '../../utils/constants.js';
+import { documentService } from '../../services/documentService.js';
 
 const inputClass =
   'w-full rounded border border-border-strong px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500/60 focus:border-brand-600';
@@ -19,6 +20,26 @@ export default function FieldFlagForm({ mines, onSubmit }) {
   const [photos, setPhotos] = useState([]);
   const [useGps, setUseGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [ocrMessage, setOcrMessage] = useState(null);
+
+  async function handleExtractText() {
+    const file = photos[0];
+    if (!file || extracting) return;
+    setExtracting(true);
+    setOcrMessage(null);
+    try {
+      const result = await documentService.extractText(file);
+      const extractedText = result.text?.trim();
+      if (!extractedText) throw new Error('No readable text was found in this file.');
+      setDescription((current) => current.trim() ? `${current.trim()}\n\n${extractedText}` : extractedText);
+      setOcrMessage(`Text added to Description (${result.ocr_pages || 0} OCR page${result.ocr_pages === 1 ? '' : 's'}). You can edit it before submitting.`);
+    } catch (error) {
+      setOcrMessage(error.message || 'OCR could not read this file.');
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -110,6 +131,20 @@ export default function FieldFlagForm({ mines, onSubmit }) {
       </div>
 
       <FileUploader files={photos} onChange={setPhotos} />
+      {photos.length > 0 && (
+        <div className="rounded border border-brand-200 bg-brand-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-ink-900">Read attached file with OCR</p>
+              <p className="text-xs text-ink-600">Extracted text will be added to Description, where you can review or edit it.</p>
+            </div>
+            <Button type="button" variant="secondary" size="sm" icon={extracting ? Loader2 : FileText} onClick={handleExtractText} disabled={extracting} className={extracting ? '[&>svg]:animate-spin' : ''}>
+              {extracting ? 'Reading…' : 'Extract text'}
+            </Button>
+          </div>
+          {ocrMessage && <p className={`mt-2 text-xs ${ocrMessage.startsWith('Text added') ? 'text-status-success' : 'text-status-danger'}`}>{ocrMessage}</p>}
+        </div>
+      )}
 
       <label className="flex items-start gap-2.5 text-sm text-ink-700">
         <input type="checkbox" checked={isConfidential} onChange={(e) => setIsConfidential(e.target.checked)} className="mt-0.5" />
