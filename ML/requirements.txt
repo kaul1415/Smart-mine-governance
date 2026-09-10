@@ -1,13 +1,23 @@
-fastapi>=0.111.0
-uvicorn[standard]>=0.30.0
-pydantic>=2.7.0
-httpx>=0.27.0
-psycopg2-binary>=2.9.9
-python-multipart>=0.0.9
-pypdf>=4.2.0
-python-dotenv>=1.0.1
-numpy>=1.26.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Deep Learning & Vision Models (Offline Donut DocVQA & PyTorch CPU)
+torch>=2.0.0
 transformers>=4.40.0
 sentencepiece>=0.2.0
 pillow>=10.0.0
 pymupdf>=1.24.0
+
+# API & Web Framework
+fastapi>=0.111.0
+uvicorn>=0.30.0
+pydantic>=2.7.0
+httpx>=0.27.0
+python-multipart>=0.0.9
+
+# Document Parsing & Data
+pypdf>=4.2.0
+numpy>=1.26.0
+python-dotenv>=1.0.1
+
+# Database (PostgreSQL binary driver)
+psycopg2-binary>=2.9.9

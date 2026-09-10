@@ -13,8 +13,14 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import psycopg2
-from psycopg2.extras import RealDictCursor
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    RealDictCursor = None
+    HAS_PSYCOPG2 = False
 import pypdf
 import io
 from pdf_processor import extract_fields_from_document, get_donut_pipeline
@@ -57,6 +63,8 @@ def init_sqlite_schema():
     conn.close()
 
 def get_db_connection():
+    if not HAS_PSYCOPG2:
+        return None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         return conn

@@ -238,19 +238,27 @@ Double-click `stop-all.bat` to gracefully terminate all services and free ports.
 
 ### Manual Step-by-Step Setup
 
-#### 1. Setup ML Service
+#### 1. Setup ML Service (FastAPI & Offline AI)
 ```bash
 cd ML
+
+# Create and activate virtual environment:
+# On Windows:
 python -m venv venv
 .\venv\Scripts\activate
 
-# Install PyTorch CPU wheel and dependencies
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+# On Linux / macOS:
+python3 -m venv venv
+source venv/bin/activate
+
+# Upgrade pip and install all dependencies (includes CPU PyTorch & Donut vision model):
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Start ML service
+# Start ML service on port 8001
 python -m uvicorn main:app --host 0.0.0.0 --port 8001
 ```
+*(Note: `requirements.txt` includes `--extra-index-url https://download.pytorch.org/whl/cpu` to automatically fetch the lightweight CPU-only PyTorch build (~120MB) instead of heavy GPU packages).*
 
 #### 2. Setup Node.js Backend
 ```bash
