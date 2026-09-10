@@ -20,7 +20,8 @@ import { correctiveActionService } from '../../services/correctiveActionService.
 import { riskService } from '../../services/riskService.js';
 import { notificationService } from '../../services/notificationService.js';
 import { noticeService } from '../../services/noticeService.js';
-import { mockComplianceTrend, mockDashboardStats, mockResponses } from '../../data/mockData.js';
+import { dashboardService } from '../../services/dashboardService.js';
+import { mockComplianceTrend, mockResponses } from '../../data/mockData.js';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setState({ status: 'loading', data: null, error: null });
     try {
-      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices] = await Promise.all([
+      const [mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats] = await Promise.all([
         mineService.getMines(),
         mineService.getHighRiskMines(),
         flagService.getRecentFlags(5),
@@ -37,10 +38,11 @@ export default function Dashboard() {
         correctiveActionService.getOverdueActions(),
         notificationService.getRecentAlerts(4),
         noticeService.getNotices(user?.department),
+        dashboardService.getDashboardStats(),
       ]);
       setState({
         status: 'success',
-        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices },
+        data: { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats },
         error: null,
       });
     } catch (err) {
@@ -70,8 +72,7 @@ export default function Dashboard() {
     );
   }
 
-  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices } = state.data;
-  const stats = mockDashboardStats;
+  const { mines, highRiskMines, recentFlags, flagsByCategory, overdueActions, alerts, notices, stats } = state.data;
 
   return (
     <>

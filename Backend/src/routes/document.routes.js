@@ -1,17 +1,15 @@
 const express = require('express');
-const multer = require('multer');
+const {
+  getDocuments,
+  getDocumentById,
+  uploadDocument,
+} = require('../controllers/document.controller');
+const { verifyToken } = require('../middlewares/auth.middleware');
+
 const router = express.Router();
-const documentController = require('../controllers/document.controller');
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB limit
-});
-
-router.post('/', upload.single('file'), documentController.uploadDocument);
-router.post('/extract-fields', upload.single('file'), documentController.extractFields);
-router.get('/', documentController.getDocuments);
-router.get('/:documentId/chunks', documentController.getDocumentChunks);
-router.delete('/:documentId', documentController.deleteDocument);
+router.get('/', verifyToken, getDocuments);
+router.get('/:id', verifyToken, getDocumentById);
+router.post('/', verifyToken, uploadDocument);
 
 module.exports = router;

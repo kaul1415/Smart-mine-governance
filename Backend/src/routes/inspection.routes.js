@@ -2,62 +2,26 @@ const express = require('express');
 const {
   getInspections,
   getInspectionById,
-  scheduleInspection,
-  updateInspection,
-  completeInspection,
+  createInspection,
+  submitObservation,
 } = require('../controllers/inspection.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
-/**
- * @route   GET /api/inspections
- * @desc    Get all inspections with filters
- * @access  Private
- */
 router.get('/', verifyToken, getInspections);
-
-/**
- * @route   GET /api/inspections/:id
- * @desc    Get inspection details with violations & corrective actions
- * @access  Private
- */
 router.get('/:id', verifyToken, getInspectionById);
-
-/**
- * @route   POST /api/inspections
- * @desc    Schedule a new inspection
- * @access  Private (ADMIN, REGULATOR, INSPECTOR, MANAGER)
- */
 router.post(
   '/',
   verifyToken,
-  requireRole('ADMIN', 'REGULATOR', 'INSPECTOR', 'MANAGER'),
-  scheduleInspection
+  requireRole('corporate_admin', 'mine_manager', 'safety_officer', 'field_inspector', 'regulator'),
+  createInspection
 );
-
-/**
- * @route   PUT /api/inspections/:id
- * @desc    Update inspection details or dates
- * @access  Private (ADMIN, REGULATOR, INSPECTOR)
- */
-router.put(
-  '/:id',
-  verifyToken,
-  requireRole('ADMIN', 'REGULATOR', 'INSPECTOR'),
-  updateInspection
-);
-
-/**
- * @route   POST /api/inspections/:id/complete
- * @desc    Submit inspection findings and verified geo-tag coordinates
- * @access  Private (ADMIN, INSPECTOR)
- */
 router.post(
-  '/:id/complete',
+  '/:id/observations',
   verifyToken,
-  requireRole('ADMIN', 'INSPECTOR'),
-  completeInspection
+  requireRole('corporate_admin', 'mine_manager', 'safety_officer', 'field_inspector', 'regulator'),
+  submitObservation
 );
 
 module.exports = router;

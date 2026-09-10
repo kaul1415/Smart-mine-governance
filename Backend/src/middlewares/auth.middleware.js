@@ -10,7 +10,6 @@ const verifyToken = async (req, res, next) => {
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
-        success: false,
         message: 'Access denied. No token provided.',
       });
     }
@@ -18,7 +17,6 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     if (!token) {
       return res.status(401).json({
-        success: false,
         message: 'Access denied. Malformed token header.',
       });
     }
@@ -28,34 +26,41 @@ const verifyToken = async (req, res, next) => {
     // Verify user is still active in database
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, role: true, isActive: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        department: true,
+        contractorId: true,
+        isActive: true,
+      },
     });
 
     if (!user || !user.isActive) {
       return res.status(401).json({
-        success: false,
         message: 'User account not found or deactivated.',
       });
     }
 
     req.user = {
       userId: user.id,
+      id: user.id,
       email: user.email,
       role: user.role,
+      department: user.department,
+      contractorId: user.contractorId,
     };
 
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
-        success: false,
         message: 'Access token expired.',
         code: 'TOKEN_EXPIRED',
       });
     }
 
     return res.status(401).json({
-      success: false,
       message: 'Invalid or malformed token.',
     });
   }
@@ -63,20 +68,23 @@ const verifyToken = async (req, res, next) => {
 
 /**
  * Role-Based Access Control (RBAC) Middleware
- * @param  {...string} allowedRoles Array of Role values permitted to access the endpoint
+ * System Department carries organization-wide, admin-level access regardless of role.
  */
 const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
-        success: false,
         message: 'Unauthorized. Authentication required.',
       });
     }
 
+    // System department has organization-wide admin access
+    if (req.user.department === 'system' || req.user.role === 'corporate_admin') {
+      return next();
+    }
+
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
-        success: false,
         message: `Forbidden. Requires one of roles: [${allowedRoles.join(', ')}]. Your role: ${req.user.role}`,
       });
     }

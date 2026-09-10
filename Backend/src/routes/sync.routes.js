@@ -1,10 +1,9 @@
 const express = require('express');
-const { getMines, getMineById } = require('../controllers/mine.controller');
+const { syncItem } = require('../controllers/sync.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
-router.get('/', verifyToken, getMines);
-router.get('/:id', verifyToken, getMineById);
+router.post('/', verifyToken, syncItem);
 
 module.exports = router;

@@ -12,9 +12,8 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-// Toggle for the whole app. In a later phase this can move to an
-// env var (VITE_USE_MOCKS) once the backend contract is stable.
-export const USE_MOCKS = true;
+// Toggle for the whole app. Reads from VITE_USE_MOCKS (default: false when not set to 'true').
+export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 
 // Simulates realistic network latency for mock responses so loading
 // states are actually visible during the SIH demo instead of
