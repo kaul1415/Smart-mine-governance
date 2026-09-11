@@ -44,12 +44,15 @@ export default function NewFlag() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     try {
       const mine = mines.find((m) => m.id === form.mineId);
+      const submissionId = `sub-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const newFlag = await flagService.createFlag({
         ...form,
+        clientSubmissionId: submissionId,
         mineName: mine?.name || '',
         evidenceCount: evidence.length,
       });

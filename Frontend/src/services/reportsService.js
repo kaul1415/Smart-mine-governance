@@ -1,21 +1,22 @@
 import { apiClient, USE_MOCKS, mockDelay } from './api.js';
 import {
   mockMines,
-  mockFlags,
   mockComplianceRequirements,
   mockCorrectiveActions,
   mockContractors,
   mockContractorPerformance,
   mockRiskScores,
 } from '../data/mockData.js';
+import { flagService } from './flagService.js';
 
 // Mock-only stand-in for a backend report-generation service. Real
 // mode simply posts the request and returns whatever the backend
 // generates — no aggregation happens in the browser there.
-function buildMockReport(reportType, mineId) {
+async function buildMockReport(reportType, mineId) {
   const mine = mineId ? mockMines.find((m) => m.id === mineId) : null;
   const scopeLabel = mine ? mine.name : 'All Mines';
-  const flags = mockFlags.filter((f) => !mineId || f.mineId === mineId);
+  const allFlags = await flagService.getFlags();
+  const flags = allFlags.filter((f) => !mineId || f.mineId === mineId);
   const compliance = mockComplianceRequirements.filter((c) => !mineId || c.mineId === mineId);
   const actions = mockCorrectiveActions.filter((a) => !mineId || a.mineId === mineId);
   const risk = mineId ? mockRiskScores.find((r) => r.mineId === mineId) : null;
@@ -49,7 +50,10 @@ function buildMockReport(reportType, mineId) {
 }
 
 async function generateReport({ reportType, mineId, fromDate, toDate }) {
-  if (USE_MOCKS) return mockDelay(buildMockReport(reportType, mineId), 900);
+  if (USE_MOCKS) {
+    const report = await buildMockReport(reportType, mineId);
+    return mockDelay(report, 900);
+  }
   return apiClient.post('/reports', { reportType, mineId, fromDate, toDate }); // backend report-generation endpoint
 }
 

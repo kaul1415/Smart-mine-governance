@@ -10,7 +10,10 @@ async function syncItem(item) {
   await updateQueueItem(item.localId, { syncStatus: 'Syncing' });
   try {
     if (item.type === 'flag') {
-      await flagService.createFlag(item.payload);
+      await flagService.createFlag({
+        ...item.payload,
+        clientSubmissionId: item.localId,
+      });
     } else {
       await new Promise((resolve) => setTimeout(resolve, 400));
     }

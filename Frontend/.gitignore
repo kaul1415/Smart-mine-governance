@@ -1,6 +1,8 @@
-node_modules
-dist
+# Frontend .gitignore
 .env
-.env.local
+.env.*
+*.env
+node_modules/
+dist/
+.cache/
 *.log
-.DS_Store

@@ -1,0 +1,63 @@
+# Environment Variables (Critical - Never commit secrets)
+.env
+.env.*
+!.env.example
+*.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Build Outputs & Bundles
+dist/
+build/
+out/
+.next/
+.cache/
+
+# Uploads & Media Files
+uploads/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.webp
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+models_cache/
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Logs & Temporary Files
+*.log
+logs/
+tmp/
+temp/

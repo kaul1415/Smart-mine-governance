@@ -1,3 +1,8 @@
-node_modules/
+# Backend .gitignore
 .env
+.env.*
+*.env
+node_modules/
+dist/
 uploads/
+*.log
